@@ -1,0 +1,11 @@
+{
+	"engines": {
+		"node": "^24.0.0"
+	},
+	"scripts": {
+		"start": "vercel dev"
+	},
+	"devDependencies": {
+		"vercel": "^54.16.0"
+	}
+}
