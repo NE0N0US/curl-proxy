@@ -6,9 +6,11 @@ import zlib from 'node:zlib'
 import stream from 'node:stream'
 import undici from 'undici'
 
+const GLOBAL_TIMEOUT = 300_000
+
 undici.setGlobalDispatcher(new undici.Agent({
 	// https://vercel.com/docs/functions/configuring-functions/duration#duration-limits
-	connect: {timeout: 300_000},
+	connect: {timeout: GLOBAL_TIMEOUT},
 	strictContentLength: false,
 }))
 
@@ -67,6 +69,8 @@ enum SearchParam {
 	SKIP_DEFAULTS = 'skipdefaults',
 	STATUS = 'status',
 	STATUS_TEXT = 'statustext',
+	RETRY = 'retry',
+	RETRY_IN = 'retryin',
 	TIMEOUT = 'timeout',
 }
 
@@ -122,7 +126,9 @@ function formatHelp(message?: string, serviceUrl = 'http://localhost:3000/', htm
 			`[&${SearchParam.SKIP_DEFAULTS}]` +
 			`[&${SearchParam.STATUS}=<status_code>]` +
 			`[&${SearchParam.STATUS_TEXT}=<status_message>]` +
-			`[&${SearchParam.TIMEOUT}=<milliseconds>]` +
+			`[&${SearchParam.RETRY}=<limit=0>]` +
+			`[&${SearchParam.RETRY_IN}=<milliseconds=0>]` +
+			`[&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
 			// url params
 			`\n\nURL Parameters:\n` +
 			`* ${SearchParam.URL.padEnd(width)} - original resource URL, default protocol is https\n` +
@@ -146,6 +152,8 @@ function formatHelp(message?: string, serviceUrl = 'http://localhost:3000/', htm
 			(`* ${SearchParam.SKIP_DEFAULTS.padEnd(width)} - do not apply default header changes\n`) +
 			`* ${SearchParam.STATUS.padEnd(width)} - response status code to overwrite\n` +
 			`* ${SearchParam.STATUS_TEXT.padEnd(width)} - response status message to overwrite\n` +
+			`* ${SearchParam.RETRY.padEnd(width)} - retries after first request\n` +
+			`* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after`
 	return html ? (helpHtml ??= fileText('templates/help.html'))
 		.replace(HELP_TEXT, escapeHtml(text)) : text
@@ -265,12 +273,17 @@ function encodeBody(body: ReadableStream<Uint8Array<ArrayBuffer>> | null, encodi
 	return transform ? stream.Readable.toWeb(stream.Readable.fromWeb(body as any).pipe(transform)) as any : body
 }
 
-async function proxy(req: Request, timerSuffix: number) {
+async function proxy(req: Request, timerSuffix: number, attempt = 0): Promise<Response> {
 	const {
 		[SearchParam.URL]: url,
 		[SearchParam.SKIP_DEFAULTS]: clean,
 		...params
 	} = Object.fromEntries(new URL(req.url).searchParams)
+	const [retry, retryIn] = [SearchParam.RETRY, SearchParam.RETRY_IN].map(key => {
+		const param = params[key]
+		return (param?.match(/^d+$/) && Number.isSafeInteger(+param) && +param > 0)
+			? +param : 0
+	})
 	if (!url)
 		return helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter!`)
 	// get request headers
@@ -293,27 +306,32 @@ async function proxy(req: Request, timerSuffix: number) {
 		)))
 	)
 	try {
-		console.time('fetch-' + timerSuffix)
+		if (!attempt)
+			console.time('fetch-' + timerSuffix)
 		const
 			timeoutParam = params[SearchParam.TIMEOUT],
 			timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0),
 		// get response
-			res = await fetch(url.match(/^\w+:\/\//) ? url : ('https://' + url), new Request(req, {
-				headers: new Headers(reqHeaders),
-				signal: timeout ? AbortSignal.timeout(timeout) : undefined,
-			})),
+			res = await fetch(url.match(/^\w+:\/\//) ? url : ('https://' + url),
+				new Request(retry > attempt ? req.clone() : req, {
+					headers: new Headers(reqHeaders),
+					signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+				})
+			),
 		// get response headers
 			resHeaders: Record<string, string | string[]> = {
 				...Object.fromEntries(res.headers),
 				[Header.CONTENT_ENCODING]: contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
 			}
+		if (retry === attempt)
+			console.timeEnd('fetch-' + timerSuffix)
+		// fix response headers: https://github.com/nodejs/undici/issues/2514
 		if (resHeaders[Header.CONTENT_ENCODING]) {
 			delete resHeaders[Header.CONTENT_LENGTH]
 			resHeaders[Header.TRANSFER_ENCODING] = TRANSFER_ENCODING_CHUNKED
 		}
 		else
 			delete resHeaders[Header.CONTENT_ENCODING]
-		console.timeEnd('fetch-' + timerSuffix)
 		// get cookies
 		if (res.headers.getSetCookie().length)
 			resHeaders[Header.SET_COOKIE] = res.headers.getSetCookie()
@@ -347,9 +365,14 @@ async function proxy(req: Request, timerSuffix: number) {
 	}
 	catch (error) {
 		console.error(error)
-		return helpResponse(req, HttpStatus.INTERNAL_SERVER_ERROR,
-			['Error!', error?.toString() ?? ''].filter(part => part).join('\n')
-		)
+		// retry in
+		if (retry > attempt && retryIn)
+			await new Promise(resolve => setTimeout(resolve, retryIn))
+		return retry > attempt
+			? await proxy(req, timerSuffix, ++attempt)
+			: helpResponse(req, HttpStatus.INTERNAL_SERVER_ERROR,
+				['Error!', error?.toString() ?? ''].filter(part => part).join('\n')
+			)
 	}
 }
 

@@ -21,4 +21,6 @@ http://localhost:3000/api/proxy?url=<url>[&headers=<json_object>][&delheaders=<j
 - `skipdefaults` - do not apply default header changes
 - `status` - response status code to overwrite
 - `statustext` - response status message to overwrite
+- `retry` - retries after first request
+- `retryin` - milliseconds between retries
 - `timeout` - milliseconds to abort request after
