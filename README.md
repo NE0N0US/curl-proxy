@@ -17,10 +17,7 @@ http://localhost:3000/api/proxy?url=<url>[&headers=<json_object>][&delheaders=<j
   ```json
   {"Access-Control-Allow-Origin": "*"}
   ```
-- `delresheaders` - names of response headers to delete, in addition to:
-  ```json
-  ["Content-Encoding"]
-  ```
+- `delresheaders` - names of response headers to delete
 - `skipdefaults` - do not apply default header changes
 - `status` - response status code to overwrite
 - `statustext` - response status message to overwrite

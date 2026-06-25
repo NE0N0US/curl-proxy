@@ -1,7 +1,16 @@
 // #region - imports
 
-import fs from 'fs'
-import path from 'path'
+import fs from 'node:fs'
+import path from 'node:path'
+import zlib from 'node:zlib'
+import stream from 'node:stream'
+import undici from 'undici'
+
+undici.setGlobalDispatcher(new undici.Agent({
+	// https://vercel.com/docs/functions/configuring-functions/duration#duration-limits
+	connect: {timeout: 300_000},
+	strictContentLength: false,
+}))
 
 // #endregion
 
@@ -12,6 +21,42 @@ enum HttpStatus {
 	BAD_REQUEST = 400,
 	INTERNAL_SERVER_ERROR = 500,
 }
+
+enum Header {
+	ACCEPT = 'accept',
+	CONTENT_TYPE = 'content-type',
+	ACCEPT_ENCODING = 'accept-encoding',
+	CONTENT_ENCODING = 'content-encoding',
+	CONTENT_LENGTH = 'content-length',
+	TRANSFER_ENCODING = 'transfer-encoding',
+	SET_COOKIE = 'set-cookie',
+}
+
+const TRANSFER_ENCODING_CHUNKED = 'chunked'
+
+enum AcceptHeader {
+	HTML = 'text/html',
+	ANY = '*/*',
+}
+
+enum AcceptEncodingHeader {
+	DEFAULT = 'gzip',
+	GZIP = 'gzip',
+	DEFLATE = 'deflate',
+	BROTLI = 'br',
+	ZSTD = 'zstd',
+	IDENTITY = 'identity',
+	ANY = '*',
+}
+
+const ACCEPT_ENCODING_HEADER_ALL = Object.freeze([
+	AcceptEncodingHeader.GZIP,
+	AcceptEncodingHeader.DEFLATE,
+	AcceptEncodingHeader.BROTLI,
+	AcceptEncodingHeader.ZSTD,
+	AcceptEncodingHeader.IDENTITY,
+	AcceptEncodingHeader.ANY,
+])
 
 enum SearchParam {
 	URL = 'url',
@@ -35,24 +80,21 @@ const SearchDefaults = Object.freeze({
 	HEADERS: Object.freeze({
 		'Sec-Fetch-Site': 'same-site',
 	}),
-	DEL_RES_HEADERS: Object.freeze([
-		// proxy sends raw decoded body, except Deno: https://docs.deno.com/runtime/fundamentals/http_server/#automatic-body-compression
-		'Content-Encoding',
-	]),
+	DEL_RES_HEADERS: Object.freeze([]),
 	RES_HEADERS: Object.freeze({
 		'Access-Control-Allow-Origin': '*',
 	}),
 })
 
-const COOKIE_HEADER = 'set-cookie'
-
 // #endregion
 
 // #region - help
 
+const HELP_TEXT = 'HELP_TEXT'
+
 let helpHtml
 
-function formatStringArray(array: string[]) {
+function formatStringArray(array: readonly string[]) {
 	return `["${array.join('", "')}"]`
 }
 
@@ -106,14 +148,16 @@ function formatHelp(message?: string, serviceUrl = 'http://localhost:3000/', htm
 			`* ${SearchParam.STATUS_TEXT.padEnd(width)} - response status message to overwrite\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after`
 	return html ? (helpHtml ??= fileText('templates/help.html'))
-		.replace('HELP_TEXT', escapeHtml(text)) : text
+		.replace(HELP_TEXT, escapeHtml(text)) : text
 }
 
+/** does not use `encodeBody` */
 function helpResponse(req: Request, status = HttpStatus.OK, message?: string) {
-	const html = req.headers.get('accept')?.includes('text/html')
+	const html = resolveAcceptHeader(req.headers.get(Header.ACCEPT),
+		[AcceptHeader.HTML], AcceptHeader.ANY) !== AcceptHeader.ANY
 	return new Response(formatHelp(message, req.url, html), {
 		status,
-		headers: html ? {'Content-Type': 'text/html'} : undefined,
+		headers: html ? {[Header.CONTENT_TYPE]: AcceptHeader.HTML} : undefined,
 	})
 }
 
@@ -185,6 +229,42 @@ function lowerKeys<T>(record: Record<string, T>): typeof record {
 
 // #region - proxy
 
+function resolveAcceptHeader(value: string | null | undefined, allow: readonly string[], fallback: string) {
+	const
+		items = value
+			?.split(/, */g)
+			.map(item => {
+				const [value, weight] = item.split(';q=')
+				return {value, weight: +(weight ?? 1)}
+			})
+			.filter(({value}) => allow.includes(value)) ?? [],
+		maxWeight = Math.max(...items.map(({weight}) => weight))
+	return items.find(({weight}) => weight === maxWeight)?.value ?? fallback
+}
+
+function encodeBody(body: ReadableStream<Uint8Array<ArrayBuffer>> | null, encoding: string): typeof body {
+	if (!body)
+		return body
+	let transform: stream.Transform | undefined
+	switch (encoding) {
+		case AcceptEncodingHeader.GZIP:
+			transform = zlib.createGzip({level: zlib.constants.Z_BEST_COMPRESSION})
+			break
+		case AcceptEncodingHeader.DEFLATE:
+			transform = zlib.createDeflate({level: zlib.constants.Z_BEST_COMPRESSION})
+			break
+		case AcceptEncodingHeader.BROTLI:
+			transform = zlib.createBrotliCompress()
+			break
+		case AcceptEncodingHeader.ZSTD:
+			transform = zlib.createZstdCompress({params: {
+				[zlib.constants.ZSTD_c_compressionLevel]: zlib.constants.ZSTD_btultra2,
+			}})
+			break
+	}
+	return transform ? stream.Readable.toWeb(stream.Readable.fromWeb(body as any).pipe(transform)) as any : body
+}
+
 async function proxy(req: Request, timerSuffix: number) {
 	const {
 		[SearchParam.URL]: url,
@@ -194,7 +274,11 @@ async function proxy(req: Request, timerSuffix: number) {
 	if (!url)
 		return helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter!`)
 	// get request headers
-	const reqHeaders = Object.fromEntries(req.headers)
+	const
+		reqHeaders = Object.fromEntries(req.headers),
+		acceptEncoding = resolveAcceptHeader(reqHeaders[Header.ACCEPT_ENCODING],
+			ACCEPT_ENCODING_HEADER_ALL, AcceptEncodingHeader.ANY),
+		contentEncoding = acceptEncoding === AcceptEncodingHeader.ANY ? AcceptEncodingHeader.DEFAULT : acceptEncoding
 	// delete request headers
 	;[
 		...clean !== undefined ? [] : SearchDefaults.DEL_HEADERS,
@@ -219,11 +303,20 @@ async function proxy(req: Request, timerSuffix: number) {
 				signal: timeout ? AbortSignal.timeout(timeout) : undefined,
 			})),
 		// get response headers
-			resHeaders: Record<string, string | string[]> = Object.fromEntries(res.headers)
+			resHeaders: Record<string, string | string[]> = {
+				...Object.fromEntries(res.headers),
+				[Header.CONTENT_ENCODING]: contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
+			}
+		if (resHeaders[Header.CONTENT_ENCODING]) {
+			delete resHeaders[Header.CONTENT_LENGTH]
+			resHeaders[Header.TRANSFER_ENCODING] = TRANSFER_ENCODING_CHUNKED
+		}
+		else
+			delete resHeaders[Header.CONTENT_ENCODING]
 		console.timeEnd('fetch-' + timerSuffix)
 		// get cookies
 		if (res.headers.getSetCookie().length)
-			resHeaders[COOKIE_HEADER] = res.headers.getSetCookie()
+			resHeaders[Header.SET_COOKIE] = res.headers.getSetCookie()
 		// delete response headers
 		;[
 			...clean !== undefined ? [] : SearchDefaults.DEL_RES_HEADERS,
@@ -238,13 +331,15 @@ async function proxy(req: Request, timerSuffix: number) {
 			)))
 		)
 		// set cookies
-		const headers = new Headers(resHeaders as Record<string, string>)
-		if (isArray(resHeaders[COOKIE_HEADER], String)) {
-			headers.delete(COOKIE_HEADER)
-			resHeaders[COOKIE_HEADER].forEach(value => headers.append(COOKIE_HEADER, value))
+		const
+			headers = new Headers(resHeaders as Record<string, string>),
+			cookieHeader = resHeaders[Header.SET_COOKIE]
+		if (isArray(cookieHeader, String)) {
+			headers.delete(Header.SET_COOKIE)
+			cookieHeader.forEach(value => headers.append(Header.SET_COOKIE, value))
 		}
 		// clone response
-		return new Response(res.body, {
+		return new Response(encodeBody(res.body, contentEncoding), {
 			headers,
 			status: +(params[SearchParam.STATUS] || res.status),
 			statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
