@@ -4,7 +4,7 @@ http://localhost:3000/api/proxy?url=<url>[&headers=<json_object>][&delheaders=<j
 ```
 
 ## URL Parameters
-- `url` - original resource URL, default protocol is https
+- `url` - original resource URL, default protocol is `https`
 - `headers` - request headers to overwrite, in addition to:
   ```json
   {"Sec-Fetch-Site": "same-site"}

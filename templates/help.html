@@ -9,12 +9,27 @@
 				color-scheme: light dark;
 				overscroll-behavior: none;
 			}
-			pre{
+			html {
+				min-width: min-content;
+			}
+			body.wrap pre{
 				white-space: pre-wrap;
+			}
+			button {
+				user-select: none;
+				cursor: pointer;
 			}
 		</style>
 	</head>
-	<body>
-		<pre><code>HELP_TEXT</code></pre>
+	<body class="wrap">
+		<pre><code>TEMPLATE_CONTENT</code></pre>
+		<button onclick="toggleWrap(this)">No Wrap</button>
 	</body>
+	<script>
+		function toggleWrap(button) {
+			document.body.classList.toggle('wrap')
+			button.innerText = document.body.classList.contains('wrap')
+				? 'No Wrap' : 'Wrap Text'
+		}
+	</script>
 </html>

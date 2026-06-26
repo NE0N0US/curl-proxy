@@ -14,6 +14,12 @@ undici.setGlobalDispatcher(new undici.Agent({
 	strictContentLength: false,
 }))
 
+enum Filename {
+	TEMPLATE_HELP = 'templates/help.html',
+	TEMPLATE_MD = 'templates/md.html',
+	README_MD = 'README.md',
+}
+
 // #endregion
 
 // #region - data
@@ -23,6 +29,10 @@ type StringRecord = Record<string, string>
 type Bytes = Uint8Array<ArrayBuffer>
 
 type Body = ReadableStream<Bytes> | null | undefined
+
+enum HttpMethod {
+	POST = 'POST',
+}
 
 enum HttpStatus {
 	OK = 200,
@@ -97,17 +107,17 @@ const SearchDefaults = Object.freeze({
 	}),
 })
 
-const SERVICE_URL_DEFAULT = 'http://localhost:3000/'
+const SERVICE_URL_DEFAULT = 'http://localhost:3000/api/proxy'
 
-const HELP_TEXT = 'HELP_TEXT'
+const GITHUB_API_MD = 'https://api.github.com/markdown'
+
+const TEMPLATE_CONTENT = 'TEMPLATE_CONTENT'
 
 const THROTTLE_TICK_DEFAULT = 50
 
 // #endregion
 
 // #region - help
-
-let helpHtml
 
 function formatStringArray(array: readonly string[]) {
 	return `["${array.join('", "')}"]`
@@ -126,7 +136,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 	const
 		url = new URL(serviceUrl),
 		width = Math.max(...Object.values(SearchParam).map(({length}) => length)),
-		text = `${message ? message + '\n\n' : ''}` +
+		text = `${message ? `Error:\n${message}\n\n` : ''}` +
 			// usage
 			`Usage:\n${url.origin}${url.pathname}?` +
 			`${SearchParam.URL}=<url>` +
@@ -168,17 +178,32 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after\n` +
 			`* ${SearchParam.THROTTLE.padEnd(width)} - bandwidth limit in kbit/s`
-	return html ? (helpHtml ??= fileText('templates/help.html'))
-		.replace(HELP_TEXT, escapeHtml(text)) : text
+	return html ? fileText(Filename.TEMPLATE_HELP)
+		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
 
 /** does not use `encodeBody` */
-function helpResponse(req: Request, status = HttpStatus.OK, message?: string) {
-	const html = resolveAcceptHeader(req.headers.get(Header.ACCEPT),
-		[AcceptHeader.HTML], AcceptHeader.ANY) !== AcceptHeader.ANY
-	return new Response(formatHelp(message, req.url, html), {
+async function helpResponse(req: Request, status = HttpStatus.OK, message?: string) {
+	const
+		url = new URL(req.url ?? SERVICE_URL_DEFAULT),
+		text = (message ? `# Error\n\`\`\`\n${message}\n\`\`\`\n` : '') +
+			fileText(Filename.README_MD)
+				.replace(SERVICE_URL_DEFAULT, `${url.origin}${url.pathname}`),
+		acceptHtml = resolveAcceptHeader(req.headers.get(Header.ACCEPT),
+			[AcceptHeader.HTML], AcceptHeader.ANY) !== AcceptHeader.ANY,
+		result = acceptHtml ? await fetch(GITHUB_API_MD, {
+			method: HttpMethod.POST,
+			body: JSON.stringify({text}),
+		})
+			.then(res => res.text())
+			.then(html =>
+				fileText(Filename.TEMPLATE_MD).replace(TEMPLATE_CONTENT, html)
+			)
+			.catch(() => formatHelp(message, req.url, acceptHtml))
+			: formatHelp(message, req.url, acceptHtml)
+	return new Response(result, {
 		status,
-		headers: html ? {[Header.CONTENT_TYPE]: AcceptHeader.HTML} : undefined,
+		headers: acceptHtml ? {[Header.CONTENT_TYPE]: AcceptHeader.HTML} : undefined,
 	})
 }
 
@@ -186,8 +211,11 @@ function helpResponse(req: Request, status = HttpStatus.OK, message?: string) {
 
 // #region - utils
 
+const fileTextCache: Record<string, string> = {}
+
 function fileText(filename: string) {
-	return fs.readFileSync(path.join(process.cwd(), filename)).toString()
+	return fileTextCache[filename] ??=
+		fs.readFileSync(path.join(process.cwd(), filename)).toString()
 }
 
 function isArray<T = any>(value: any, ofClass: Function | undefined = String): value is T[] {
@@ -408,7 +436,7 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 		}),
 		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
 	if (!url)
-		return helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter!`)
+		return await helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter`)
 	// get request headers
 	const
 		reqHeaders = Object.fromEntries(req.headers),
@@ -512,8 +540,8 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 			throw req.signal.reason ?? getAbortError()
 		return retry > attempt
 			? await proxy(req, timerCounter, ++attempt)
-			: helpResponse(req, HttpStatus.INTERNAL_SERVER_ERROR,
-				['Error!', error?.toString() ?? ''].filter(part => part).join('\n')
+			: await helpResponse(req, HttpStatus.INTERNAL_SERVER_ERROR,
+				error?.toString() ?? 'Unknown error'
 			)
 	}
 }
@@ -522,8 +550,8 @@ let c = 0
 
 export default {
 	fetch: async (req: Request) => {
-		req.signal?.addEventListener('abort', event =>
-			console.debug(`[${n}:*] abort`, event),
+		req.signal?.addEventListener('abort', () =>
+			console.debug(`[${n}:*] abort`),
 		{once: true})
 		const n = c++
 		console.time(`[${n}:*] proxy`)

@@ -3,7 +3,7 @@
 	"functions": {
 		"api/*": {
 			"supportsCancellation": true,
-			"includeFiles": "templates/**/*"
+			"includeFiles": "**/*.{html,md}"
 		}
 	}
 }
