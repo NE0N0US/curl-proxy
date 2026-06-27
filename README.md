@@ -7,6 +7,8 @@ http://localhost:3000/api/proxy?url=<url,multi>
   [&resheaders=<json_object>]
   [&delresheaders=<json_array>]
   [&skipdefaults]
+  [&method=<http_method>]
+  [&body=<body_text>]
   [&status=<status_code>]
   [&statustext=<status_message>]
   [&retry=<limit=0>]
@@ -32,6 +34,8 @@ http://localhost:3000/api/proxy?url=<url,multi>
   ```
 - `delresheaders` - names of response headers to delete
 - `skipdefaults` - do not apply default header changes
+- `method` - HTTP method override
+- `body` - request body text
 - `status` - response status code to overwrite
 - `statustext` - response status message to overwrite
 - `retry` - retries after first request

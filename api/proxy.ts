@@ -85,6 +85,8 @@ enum SearchParam {
 	RES_HEADERS = 'resheaders',
 	DEL_RES_HEADERS = 'delresheaders',
 	SKIP_DEFAULTS = 'skipdefaults',
+	METHOD = 'method',
+	BODY = 'body',
 	STATUS = 'status',
 	STATUS_TEXT = 'statustext',
 	RETRY = 'retry',
@@ -148,19 +150,21 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
 			// usage
 			`Usage:\n${url.origin}${url.pathname}?` +
-			`${SearchParam.URL}=<url,multi>` +
-			`[&${SearchParam.FASTEST}]` +
-			`[&${SearchParam.HEADERS}=<json_object>]` +
-			`[&${SearchParam.DEL_HEADERS}=<json_array>]` +
-			`[&${SearchParam.RES_HEADERS}=<json_object>]` +
-			`[&${SearchParam.DEL_RES_HEADERS}=<json_array>]` +
-			`[&${SearchParam.SKIP_DEFAULTS}]` +
-			`[&${SearchParam.STATUS}=<status_code>]` +
-			`[&${SearchParam.STATUS_TEXT}=<status_message>]` +
-			`[&${SearchParam.RETRY}=<limit=0>]` +
-			`[&${SearchParam.RETRY_IN}=<milliseconds=0>]` +
-			`[&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
-			`[&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
+			`\n  ${SearchParam.URL}=<url,multi>` +
+			`\n  [&${SearchParam.FASTEST}]` +
+			`\n  [&${SearchParam.HEADERS}=<json_object>]` +
+			`\n  [&${SearchParam.DEL_HEADERS}=<json_array>]` +
+			`\n  [&${SearchParam.RES_HEADERS}=<json_object>]` +
+			`\n  [&${SearchParam.DEL_RES_HEADERS}=<json_array>]` +
+			`\n  [&${SearchParam.SKIP_DEFAULTS}]` +
+			`\n  [&${SearchParam.METHOD}=<http_method>]` +
+			`\n  [&${SearchParam.BODY}=<body_text>]` +
+			`\n  [&${SearchParam.STATUS}=<status_code>]` +
+			`\n  [&${SearchParam.STATUS_TEXT}=<status_message>]` +
+			`\n  [&${SearchParam.RETRY}=<limit=0>]` +
+			`\n  [&${SearchParam.RETRY_IN}=<milliseconds=0>]` +
+			`\n  [&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
+			`\n  [&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
 			// url params
 			`\n\nURL Parameters:\n` +
 			`* ${
@@ -187,6 +191,8 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? `  ${formatStringArray(SearchDefaults.DEL_RES_HEADERS)}\n` : '') +
 			// other params
 			(`* ${SearchParam.SKIP_DEFAULTS.padEnd(width)} - do not apply default header changes\n`) +
+			`* ${SearchParam.METHOD.padEnd(width)} - HTTP method override\n` +
+			`* ${SearchParam.BODY.padEnd(width)} - request body text\n` +
 			`* ${SearchParam.STATUS.padEnd(width)} - response status code to overwrite\n` +
 			`* ${SearchParam.STATUS_TEXT.padEnd(width)} - response status message to overwrite\n` +
 			`* ${SearchParam.RETRY.padEnd(width)} - retries after first request\n` +
@@ -482,8 +488,11 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 		if (!attempt)
 			console.time(timerPrefix + 'fetch')
 		const
+			method = params[SearchParam.METHOD] || req.method,
 			request = new Request(req, {
-				body: throttleBody((retry > attempt ? req.clone() : req).body, throttle),
+				method,
+				body: (method.toUpperCase() === 'GET' ? undefined : params[SearchParam.BODY])
+					?? throttleBody((retry > attempt ? req.clone() : req).body, throttle),
 				headers: new Headers(reqHeaders),
 				signal: AbortSignal.any([
 					req.signal,
