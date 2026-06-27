@@ -48,6 +48,7 @@ enum Header {
 	CONTENT_LENGTH = 'content-length',
 	TRANSFER_ENCODING = 'transfer-encoding',
 	SET_COOKIE = 'set-cookie',
+	X_RESPONSES = 'x-responses',
 }
 
 const TRANSFER_ENCODING_CHUNKED = 'chunked'
@@ -78,6 +79,7 @@ const ACCEPT_ENCODING_HEADER_ALL = Object.freeze([
 
 enum SearchParam {
 	URL = 'url',
+	FASTEST = 'fastest',
 	HEADERS = 'headers',
 	DEL_HEADERS = 'delheaders',
 	RES_HEADERS = 'resheaders',
@@ -115,9 +117,16 @@ const TEMPLATE_CONTENT = 'TEMPLATE_CONTENT'
 
 const THROTTLE_TICK_DEFAULT = 50
 
+const PROTOCOL_DEFAULT = 'https'
+
 // #endregion
 
 // #region - help
+
+function formatHttpHeader(name: string) {
+	return name.toLowerCase()
+		.replace(/(?<=^|-)\w/g, char => char.toUpperCase())
+}
 
 function formatStringArray(array: readonly string[]) {
 	return `["${array.join('", "')}"]`
@@ -139,7 +148,8 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
 			// usage
 			`Usage:\n${url.origin}${url.pathname}?` +
-			`${SearchParam.URL}=<url>` +
+			`${SearchParam.URL}=<url,multi>` +
+			`[&${SearchParam.FASTEST}]` +
 			`[&${SearchParam.HEADERS}=<json_object>]` +
 			`[&${SearchParam.DEL_HEADERS}=<json_array>]` +
 			`[&${SearchParam.RES_HEADERS}=<json_object>]` +
@@ -153,7 +163,12 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`[&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
 			// url params
 			`\n\nURL Parameters:\n` +
-			`* ${SearchParam.URL.padEnd(width)} - original resource URL, default protocol is https\n` +
+			`* ${
+				SearchParam.URL.padEnd(width)
+			} - resource URL, default https, repeatable, first response used, others in ${
+				formatHttpHeader(Header.X_RESPONSES)
+			}\n` +
+			`* ${SearchParam.FASTEST.padEnd(width)} - return first completed response, abort others\n` +
 			// headers
 			`* ${SearchParam.HEADERS.padEnd(width)} - request headers to overwrite` +
 			(isRecord(SearchDefaults.HEADERS) ? ', in addition to:\n' : '\n') +
@@ -413,17 +428,22 @@ function throttleBody(source: Body, kbps: number, options: Partial<{
 	})
 }
 
+function defaultProtocol(url: string, protocol = PROTOCOL_DEFAULT) {
+	return url.match(/^\w+:\/\//) ? url : (protocol + '://' + url)
+}
+
 async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<Response> {
 	if (req.signal?.aborted)
 		throw req.signal.reason ?? getAbortError()
 	// parse search params
 	const
+		searchParams = new URL(req.url).searchParams,
+		urls = searchParams.getAll(SearchParam.URL),
 		{
-			[SearchParam.URL]: url,
 			[SearchParam.SKIP_DEFAULTS]: clean,
 			[SearchParam.TIMEOUT]: timeoutParam,
 			...params
-		} = Object.fromEntries(new URL(req.url).searchParams),
+		} = Object.fromEntries(searchParams),
 		[status, retry, retryIn, throttle] = [
 			SearchParam.STATUS,
 			SearchParam.RETRY,
@@ -435,7 +455,7 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 				? +param : 0
 		}),
 		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
-	if (!url)
+	if (!urls[0])
 		return await helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter`)
 	// get request headers
 	const
@@ -462,28 +482,55 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 		if (!attempt)
 			console.time(timerPrefix + 'fetch')
 		const
-			request = new Request(retry > attempt ? req.clone() : req, {
+			request = new Request(req, {
+				body: throttleBody((retry > attempt ? req.clone() : req).body, throttle),
 				headers: new Headers(reqHeaders),
 				signal: AbortSignal.any([
 					req.signal,
 					...timeout ? [AbortSignal.timeout(timeout)] : [],
 				]),
+				// @ts-expect-error
+				duplex: 'half',
 			}),
-		// get response
-			res = await fetch(
-				url.match(/^\w+:\/\//) ? url : ('https://' + url),
-				new Request(request, {
-					body: throttleBody(request.body, throttle),
-					// @ts-expect-error
-					duplex: 'half',
+		// send requests
+			requestAborters = urls.map(() => new AbortController()),
+			responsePromises = urls.map((url, index) =>
+				fetch(defaultProtocol(url), new Request(
+					index ? request.clone() : request,
+					{
+						signal: AbortSignal.any([
+							request.signal,
+							requestAborters[index].signal,
+						]),
+					}
+				)).then(res => {
+					requestAborters.splice(index, 1)
+					return res
 				})
 			),
+			responsesPromise = Promise.allSettled(responsePromises)
+		// get response(s)
+		let
+			responses: PromiseSettledResult<Response>[] = [],
+			res: Response
+		if (params[SearchParam.FASTEST] === undefined) {
+			responses = await responsesPromise
+			if (responses[0].status === 'rejected')
+				throw responses[0].reason
+			else
+				res = responses[0].value
+			responses.shift()
+		}
+		else {
+			res = await Promise.race(responsePromises)
+			requestAborters.forEach(aborter => aborter.abort())
+		}
 		// get response headers
-			resHeaders: Record<string, string | string[]> = {
-				...Object.fromEntries(res.headers),
-				[Header.CONTENT_ENCODING]:
-					contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
-			}
+		const resHeaders: Record<string, string | string[]> = {
+			...Object.fromEntries(res.headers),
+			[Header.CONTENT_ENCODING]:
+				contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
+		}
 		if (retry === attempt)
 			console.timeEnd(timerPrefix + 'fetch')
 		// fix response headers: https://github.com/nodejs/undici/issues/2514
@@ -493,6 +540,13 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 		}
 		else
 			delete resHeaders[Header.CONTENT_ENCODING]
+		// add extra responses header
+		if (responses.length)
+			resHeaders[Header.X_RESPONSES] = JSON.stringify(
+				responses.map(result =>
+					result.status === 'fulfilled' ? result.value.status : null
+				)
+			)
 		// get cookies
 		if (res.headers.getSetCookie().length)
 			resHeaders[Header.SET_COOKIE] = res.headers.getSetCookie()

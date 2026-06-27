@@ -1,10 +1,23 @@
 # Usage
 ```url
-http://localhost:3000/api/proxy?url=<url>[&headers=<json_object>][&delheaders=<json_array>][&resheaders=<json_object>][&delresheaders=<json_array>][&skipdefaults][&status=<status_code>][&statustext=<status_message>][&retry=<limit=0>][&retryin=<milliseconds=0>][&timeout=<milliseconds=300000>][&throttle=<kbps=Infinity>]
+http://localhost:3000/api/proxy?url=<url,multi>
+  [&fastest]
+  [&headers=<json_object>]
+  [&delheaders=<json_array>]
+  [&resheaders=<json_object>]
+  [&delresheaders=<json_array>]
+  [&skipdefaults]
+  [&status=<status_code>]
+  [&statustext=<status_message>]
+  [&retry=<limit=0>]
+  [&retryin=<milliseconds=0>]
+  [&timeout=<milliseconds=300000>]
+  [&throttle=<kbps=Infinity>]
 ```
 
 ## URL Parameters
-- `url` - original resource URL, default protocol is `https`
+- `url` - resource URL, default `https`, repeatable, first response used, others in `X-Responses`
+- `fastest` - return first completed response, abort others
 - `headers` - request headers to overwrite, in addition to:
   ```json
   {"Sec-Fetch-Site": "same-site"}
