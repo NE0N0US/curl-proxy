@@ -470,12 +470,14 @@ async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<R
 				]),
 			}),
 		// get response
-			res = await fetch(url.match(/^\w+:\/\//) ? url : ('https://' + url), {
-				...request,
-				body: throttleBody(request.body, throttle),
-				// @ts-expect-error
-				duplex: 'half',
-			}),
+			res = await fetch(
+				url.match(/^\w+:\/\//) ? url : ('https://' + url),
+				new Request(request, {
+					body: throttleBody(request.body, throttle),
+					// @ts-expect-error
+					duplex: 'half',
+				})
+			),
 		// get response headers
 			resHeaders: Record<string, string | string[]> = {
 				...Object.fromEntries(res.headers),
