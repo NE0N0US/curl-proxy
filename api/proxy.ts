@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import stream from 'node:stream'
+import vm from 'node:vm'
 import undici from 'undici'
 
 const GLOBAL_TIMEOUT = 300_000
@@ -12,6 +13,7 @@ undici.setGlobalDispatcher(new undici.Agent({
 	// https://vercel.com/docs/functions/configuring-functions/duration#duration-limits
 	connect: {timeout: GLOBAL_TIMEOUT},
 	strictContentLength: false,
+	allowH2: true,
 }))
 
 enum Filename {
@@ -87,6 +89,7 @@ enum SearchParam {
 	SKIP_DEFAULTS = 'skipdefaults',
 	METHOD = 'method',
 	BODY = 'body',
+	RES_BODY = 'resbody',
 	STATUS = 'status',
 	STATUS_TEXT = 'statustext',
 	RETRY = 'retry',
@@ -111,6 +114,13 @@ const SearchDefaults = Object.freeze({
 	}),
 })
 
+enum ResBodyParam {
+	NULL = 'null',
+	ATOB = 'atob',
+	BTOA = 'btoa',
+	JAVASCRIPT = 'javascript:',
+}
+
 const SERVICE_URL_DEFAULT = 'http://localhost:3000/api/proxy'
 
 const GITHUB_API_MD = 'https://api.github.com/markdown'
@@ -119,7 +129,7 @@ const TEMPLATE_CONTENT = 'TEMPLATE_CONTENT'
 
 const THROTTLE_TICK_DEFAULT = 50
 
-const PROTOCOL_DEFAULT = 'https'
+const PROTOCOL_DEFAULT = 'http'
 
 // #endregion
 
@@ -145,8 +155,9 @@ function escapeHtml(text: string) {
 
 function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = false) {
 	const
-		url = new URL(serviceUrl),
+		url = new URL(defaultProtocol(serviceUrl)),
 		width = Math.max(...Object.values(SearchParam).map(({length}) => length)),
+		widthRbp = Math.max(...Object.values(ResBodyParam).map(({length}) => length)),
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
 			// usage
 			`Usage:\n${url.origin}${url.pathname}?` +
@@ -159,6 +170,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n  [&${SearchParam.SKIP_DEFAULTS}]` +
 			`\n  [&${SearchParam.METHOD}=<http_method>]` +
 			`\n  [&${SearchParam.BODY}=<body_text>]` +
+			`\n  [&${SearchParam.RES_BODY}=<action>]` +
 			`\n  [&${SearchParam.STATUS}=<status_code>]` +
 			`\n  [&${SearchParam.STATUS_TEXT}=<status_message>]` +
 			`\n  [&${SearchParam.RETRY}=<limit=0>]` +
@@ -169,7 +181,9 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n\nURL Parameters:\n` +
 			`* ${
 				SearchParam.URL.padEnd(width)
-			} - resource URL, default https, repeatable, first response used, others in ${
+			} - resource URL, default ${
+				PROTOCOL_DEFAULT
+			}, repeatable, first response used, others in ${
 				formatHttpHeader(Header.X_RESPONSES)
 			}\n` +
 			`* ${SearchParam.FASTEST.padEnd(width)} - return first completed response, abort others\n` +
@@ -193,12 +207,22 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			(`* ${SearchParam.SKIP_DEFAULTS.padEnd(width)} - do not apply default header changes\n`) +
 			`* ${SearchParam.METHOD.padEnd(width)} - HTTP method override\n` +
 			`* ${SearchParam.BODY.padEnd(width)} - request body text\n` +
+			// resbody
+			`* ${SearchParam.RES_BODY.padEnd(width)} - response transformation:\n` +
+			`  * ${ResBodyParam.NULL.padEnd(widthRbp + 1)} - remove response body\n` +
+			`  * ${ResBodyParam.ATOB.padEnd(widthRbp + 1)} - decode body from base64\n` +
+			`  * ${ResBodyParam.BTOA.padEnd(widthRbp + 1)} - encode body to base64\n` +
+			`  * ${ResBodyParam.JAVASCRIPT}… - custom handler, returns body, response or request\n` +
+			// other params
 			`* ${SearchParam.STATUS.padEnd(width)} - response status code to overwrite\n` +
 			`* ${SearchParam.STATUS_TEXT.padEnd(width)} - response status message to overwrite\n` +
 			`* ${SearchParam.RETRY.padEnd(width)} - retries after first request\n` +
 			`* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after\n` +
-			`* ${SearchParam.THROTTLE.padEnd(width)} - bandwidth limit in kbit/s`
+			`* ${SearchParam.THROTTLE.padEnd(width)} - bandwidth limit in kbit/s` +
+			// typescript declaration of resbody javascript
+			`\n\TypeScript Declaration of "resbody=javascript:*"\n` +
+			`declare function custom(\n    // request with parameters applied\n    req: RequestView,\n    // first or fastest response with parameters applied\n    res: ResponseView,\n    // other responses, null if error\n    responses: Array<ResponseView | null>\n): CustomResult\n\ninterface ReqResView {\n    url: string\n    headers: Record<string, string>\n    // body:\n    bytes: Uint8Array\n    text: string\n    json: any\n}\n\ninterface RequestView extends ReqResView {\n    method: string\n}\n\ninterface ResponseView extends ReqResView {\n    cookies: string[]\n    ok: boolean\n    redirected: boolean\n    status: number\n    statusText: string\n}\n\ntype CustomResult =\n    | Request                     // replace original request and refetch response\n    | Response                    // replace original response\n    | undefined                   // return original response\n    | ReadableStream | Uint8Array // replace response body with value\n    | unknown                     // replace response body with coerced value?.toString()\n    | null                        // remove response body`
 	return html ? fileText(Filename.TEMPLATE_HELP)
 		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
@@ -216,6 +240,11 @@ async function helpResponse(req: Request, status = HttpStatus.OK, message?: stri
 			method: HttpMethod.POST,
 			body: JSON.stringify({text}),
 		})
+			.then(res => {
+				if (!res.ok)
+					throw new Error(`${res.status} ${res.statusText}`)
+				return res
+			})
 			.then(res => res.text())
 			.then(html =>
 				fileText(Filename.TEMPLATE_MD).replace(TEMPLATE_CONTENT, html)
@@ -271,7 +300,9 @@ function isRecord<K extends keyof any, V = any>(
 	return valuesOfClass && keysOfType
 }
 
-function tryParse<T = any>(json: string, isValid: Function, ...args: any[]) {
+function tryParse<T = any>(json: string | null | undefined, isValid: Function, ...args: any[]) {
+	if (!json)
+		return undefined
 	try {
 		const value = JSON.parse(json)
 		if (isValid(value, ...args))
@@ -305,9 +336,64 @@ function getAbortError(message = 'Aborted') {
 	return new DOMException(message, 'AbortError')
 }
 
-// #endregion
+function checkAbortSignal(signal?: AbortSignal, message?: string) {
+	if (signal?.aborted)
+		throw signal.reason ?? getAbortError(message)
+}
 
-// #region - proxy
+/** decode base64 */
+function atobStream() {
+	let leftover = ''
+	return new stream.Transform({
+		transform(chunk, _encoding, callback) {
+			let text = leftover + chunk.toString('ascii')
+			if (/\s/.test(text))
+				text = text.replace(/\s+/g, '')
+			const length = text.length - (text.length % 4)
+			if (length > 0)
+				this.push(Buffer.from(text.slice(0, length), 'base64'))
+			leftover = text.slice(length)
+			callback()
+		},
+		flush(callback) {
+			if (leftover.length)
+				this.push(Buffer.from(leftover, 'base64'))
+			callback()
+		},
+	})
+}
+
+/** encode base64 */
+function btoaStream() {
+	let leftover = Buffer.alloc(0)
+	return new stream.Transform({
+		transform(chunk, _encoding, callback) {
+			chunk = Buffer.concat([leftover, chunk])
+			const length = chunk.length - (chunk.length % 3)
+			if (length > 0)
+				this.push(chunk.subarray(0, length).toString('base64'))
+			leftover = chunk.subarray(length)
+			callback()
+		},
+		flush(callback) {
+			if (leftover.length)
+				this.push(leftover.toString('base64'))
+			callback()
+		},
+	})
+}
+
+/** single chunk */
+function streamify(value: Bytes | string | null | undefined) {
+	return value === null || value === undefined ? value : new ReadableStream<Bytes>({
+		start(controller) {
+			controller.enqueue(
+				value instanceof Uint8Array ? value : new TextEncoder().encode(value)
+			)
+			controller.close()
+		},
+	})
+}
 
 function resolveAcceptHeader(
 	value: string | null | undefined,
@@ -326,17 +412,240 @@ function resolveAcceptHeader(
 	return items.find(({weight}) => weight === maxWeight)?.value ?? fallback
 }
 
-function trackBody(body: Body, timerSuffix: string): Body {
+function defaultProtocol(url: string, protocol = PROTOCOL_DEFAULT) {
+	return url.match(/^\w+:\/\//) ? url : (protocol + '://' + url)
+}
+
+// #endregion
+
+// #region - proxy
+
+function parseParams(searchParams: URLSearchParams) {
+	const
+		{
+			[SearchParam.RES_BODY]: resbody,
+			[SearchParam.TIMEOUT]: timeoutParam,
+			...params
+		} = Object.fromEntries(searchParams),
+		[status, retry, retryIn, throttle] = [
+			SearchParam.STATUS,
+			SearchParam.RETRY,
+			SearchParam.RETRY_IN,
+			SearchParam.THROTTLE,
+		].map(key => {
+			const param = params[key]
+			return (param?.match(/^\d+$/) && Number.isSafeInteger(+param) && +param > 0)
+				? +param : 0
+		}),
+		doRunCustom = resbody?.startsWith(ResBodyParam.JAVASCRIPT),
+		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
+	return {params, resbody, status, retry, retryIn, throttle, doRunCustom, timeout}
+}
+
+function delSetHeaders(headers: Headers, params: URLSearchParams) {
+	const record = Object.fromEntries(headers)
+	;[
+		...params.get(SearchParam.SKIP_DEFAULTS) !== null
+			? [] : SearchDefaults.DEL_HEADERS,
+		...tryParse<string[]>(params.get(SearchParam.DEL_HEADERS), isArray) ?? [],
+	]
+		?.forEach(name => deleteWildcard(record, name))
+	Object.assign(record,
+		params.get(SearchParam.SKIP_DEFAULTS) !== null
+			? [] : lowerKeys(SearchDefaults.HEADERS ?? {}),
+		lowerKeys(
+			tryParse<StringRecord>(params.get(SearchParam.HEADERS), isRecord) ?? {}
+		)
+	)
+	return new Headers(record)
+}
+
+function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string) {
+	// get headers
+	const resHeaders: Record<string, string | string[]> = {
+		...Object.fromEntries(headers),
+		[Header.CONTENT_ENCODING]:
+			contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
+	}
+	// fix headers: https://github.com/nodejs/undici/issues/2514
+	if (resHeaders[Header.CONTENT_ENCODING]) {
+		delete resHeaders[Header.CONTENT_LENGTH]
+		resHeaders[Header.TRANSFER_ENCODING] = TRANSFER_ENCODING_CHUNKED
+	}
+	else
+		delete resHeaders[Header.CONTENT_ENCODING]
+	// get cookies
+	if (headers.getSetCookie().length)
+		resHeaders[Header.SET_COOKIE] = headers.getSetCookie()
+	// delete headers
+	;[
+		...params.get(SearchParam.SKIP_DEFAULTS) !== null ? []
+			: SearchDefaults.DEL_RES_HEADERS,
+		...tryParse<string[]>(params.get(SearchParam.DEL_RES_HEADERS), isArray) ?? [],
+	]
+		?.forEach(name => deleteWildcard(resHeaders, name))
+	// overwrite headers
+	Object.assign(resHeaders,
+		params.get(SearchParam.SKIP_DEFAULTS) !== null ? []
+			: lowerKeys(SearchDefaults.RES_HEADERS ?? {}),
+		lowerKeys(
+			tryParse<StringRecord>(params.get(SearchParam.RES_HEADERS), isRecord) ?? {}
+		)
+	)
+	// set cookies
+	const
+		newHeaders = new Headers(resHeaders as StringRecord),
+		cookieHeader = resHeaders[Header.SET_COOKIE]
+	if (isArray(cookieHeader)) {
+		newHeaders.delete(Header.SET_COOKIE)
+		cookieHeader.forEach(value => newHeaders.append(Header.SET_COOKIE, value))
+	}
+	return newHeaders
+}
+
+async function fetchMulti(request: Request, params: URLSearchParams) {
+	// send requests
+	const
+		urls = params.getAll(SearchParam.URL),
+		requestAborters = urls.map(() => new AbortController()),
+		responsePromises = urls.map((url, index) =>
+			fetch(defaultProtocol(url), new Request(
+				index ? request.clone() : request,
+				{
+					signal: AbortSignal.any([
+						request.signal,
+						requestAborters[index].signal,
+					]),
+				}
+			)).then(res => {
+				requestAborters.splice(index, 1)
+				return res
+			})
+		),
+		responsesPromise = Promise.allSettled(responsePromises)
+	// get response(s)
+	let
+		responses: PromiseSettledResult<Response>[] = [],
+		res: Response
+	if (params.get(SearchParam.FASTEST) === undefined) {
+		responses = await responsesPromise
+		if (responses[0].status === 'rejected')
+			throw responses[0].reason
+		else
+			res = responses[0].value
+		responses.shift()
+	}
+	else {
+		res = await Promise.race(responsePromises)
+		requestAborters.forEach(aborter => aborter.abort())
+	}
+	return {res, responses}
+}
+
+async function runCustom(
+	req: Request, res: Response, responses: Array<Response | null>, code: string, timeout = 10_000
+): Promise<Request | Response | Body | Bytes | unknown> {
+	let reqText, reqJson
+	const
+		[resView, ...responsesViews] = await Promise.all([res, ...responses].map(async res => {
+			if (!res)
+				return res
+			let resText, resJson
+			const view = {
+				bytes: !res.body ? new Uint8Array() : await res.bytes(),
+				get text() {
+					return resText ??= new TextDecoder().decode(view.bytes)
+				},
+				set text(text) {
+					resText = text
+				},
+				get json() {
+					return resJson ??= JSON.parse(view.text)
+				},
+				set json(json) {
+					resJson = json
+				},
+				headers: Object.fromEntries(res.headers),
+				cookies: res.headers.getSetCookie(),
+				ok: res.ok,
+				redirected: res.redirected,
+				status: res.status,
+				statusText: res.statusText,
+				url: res.url,
+			}
+			return view
+		})),
+		input = {
+			req: {
+				bytes: !req.body ? new Uint8Array() : await new Response(req.body).bytes(),
+				get text() {
+					return reqText ??= new TextDecoder().decode(input.req.bytes)
+				},
+				set text(text) {
+					reqText = text
+				},
+				get json() {
+					return reqJson ??= JSON.parse(input.req.text)
+				},
+				set json(json) {
+					reqJson = json
+				},
+				headers: Object.fromEntries(req.headers),
+				method: req.method,
+				url: req.url,
+			},
+			res: resView!,
+			responses: responsesViews,
+			Request,
+			Response,
+		}
+	return vm.runInNewContext(code, input, {timeout, breakOnSigint: true})
+}
+
+async function processCustom(
+	req: Request, newReq: Request,
+	res: Response, responses: Array<Response | null>,
+	state: {request?: Request, body?: Body} & ResponseInit,
+	code: string | undefined
+) {
+	if (code === undefined)
+		return state
+	const result = await runCustom(
+		new Request(newReq, {
+			body: newReq.body instanceof ReadableStream
+				? req.body : streamify(newReq.body),
+			// @ts-expect-error
+			duplex: 'half',
+		}),
+		new Response(res.body, state),
+		responses,
+		code
+	)
+	checkAbortSignal(req.signal)
+	if (result instanceof Request)
+		state.request = result
+	if (result instanceof Response)
+		Object.assign(state, result)
+	else if (result instanceof ReadableStream || result === null)
+		state.body = result
+	else if (result instanceof Uint8Array)
+		state.body = streamify(result as Uint8Array<ArrayBuffer>)
+	else if(result !== undefined)
+		state.body = streamify(result?.toString())
+	return state
+}
+
+function trackBody(body: Body, consolePrefix: string): Body {
 	let isFirst = true
 	return body?.pipeThrough(new TransformStream({
 		transform(chunk, controller) {
 			if(isFirst)
-				console.time(timerSuffix + 'body')
+				console.time(consolePrefix + 'body')
 			isFirst = false
 			controller.enqueue(chunk)
 		},
 		flush() {
-			console.timeEnd(timerSuffix + 'body')
+			console.timeEnd(consolePrefix + 'body')
 		},
 	}))
 }
@@ -372,15 +681,15 @@ function encodeBody(body: Body, encoding: string, signal?: AbortSignal): Body {
 	) as any : body
 }
 
-function throttleBody(source: Body, kbps: number, options: Partial<{
+function throttleBody(body: Body, kbps: number, options: Partial<{
 	signal: AbortSignal,
 	tick: number,
 }> = {}): Body {
-	if (!source || kbps <= 0)
-		return source
+	if (!body || kbps <= 0)
+		return body
 	const
 		tick = options.tick || THROTTLE_TICK_DEFAULT,
-		reader = source.getReader(),
+		reader = body.getReader(),
 		state = {
 			done: false,
 			chunks: [] as Bytes[],
@@ -434,177 +743,111 @@ function throttleBody(source: Body, kbps: number, options: Partial<{
 	})
 }
 
-function defaultProtocol(url: string, protocol = PROTOCOL_DEFAULT) {
-	return url.match(/^\w+:\/\//) ? url : (protocol + '://' + url)
+function transformBody(body: Body, transform: string | undefined, signal?: AbortSignal): Body {
+	if (!transform)
+		return body
+	const fn = transform.toLowerCase()
+	if (fn === ResBodyParam.NULL)
+		return null
+	else if (([
+		ResBodyParam.ATOB,
+		ResBodyParam.BTOA,
+	] as string[]).includes(fn)) {
+		if (!body)
+			return body
+		const transformStream = fn === ResBodyParam.ATOB
+			? atobStream() : btoaStream()
+		function abort() {
+			transformStream?.destroy(signal?.reason ?? getAbortError())
+		}
+		if (signal?.aborted)
+			abort()
+		signal?.addEventListener('abort', abort, {once: true})
+		return stream.Readable.toWeb(
+			stream.Readable.fromWeb(body as any).pipe(transformStream)
+		) as any
+	}
+	return body
 }
 
-async function proxy(req: Request, timerCounter: number, attempt = 0): Promise<Response> {
-	if (req.signal?.aborted)
-		throw req.signal.reason ?? getAbortError()
-	// parse search params
+async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): Promise<Response> {
+	checkAbortSignal(req.signal)
 	const
 		searchParams = new URL(req.url).searchParams,
-		urls = searchParams.getAll(SearchParam.URL),
-		{
-			[SearchParam.SKIP_DEFAULTS]: clean,
-			[SearchParam.TIMEOUT]: timeoutParam,
-			...params
-		} = Object.fromEntries(searchParams),
-		[status, retry, retryIn, throttle] = [
-			SearchParam.STATUS,
-			SearchParam.RETRY,
-			SearchParam.RETRY_IN,
-			SearchParam.THROTTLE,
-		].map(key => {
-			const param = params[key]
-			return (param?.match(/^\d+$/) && Number.isSafeInteger(+param) && +param > 0)
-				? +param : 0
-		}),
-		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
-	if (!urls[0])
+		{params, resbody, status, retry, retryIn, throttle, doRunCustom, timeout} =
+			parseParams(searchParams),
+		consolePrefix = `[${consoleCounter || '*'}:${depth || '*'}:${attempt || '*'}] `
+	if (!searchParams.get(SearchParam.URL))
 		return await helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter`)
-	// get request headers
-	const
-		reqHeaders = Object.fromEntries(req.headers),
-		acceptEncoding = resolveAcceptHeader(reqHeaders[Header.ACCEPT_ENCODING],
-			ACCEPT_ENCODING_HEADER_ALL, AcceptEncodingHeader.ANY),
-		contentEncoding = acceptEncoding === AcceptEncodingHeader.ANY
-			? AcceptEncodingHeader.DEFAULT : acceptEncoding
-	// delete request headers
-	;[
-		...clean !== undefined ? [] : SearchDefaults.DEL_HEADERS,
-		...tryParse<string[]>(params[SearchParam.DEL_HEADERS], isArray) ?? [],
-	]
-		?.forEach(name => deleteWildcard(reqHeaders, name))
-	// overwrite request headers
-	Object.assign(reqHeaders,
-		clean !== undefined ? [] : lowerKeys(SearchDefaults.HEADERS ?? {}),
-		lowerKeys(Object.fromEntries(new Headers(
-			tryParse<StringRecord>(params[SearchParam.HEADERS], isRecord)
-		)))
-	)
 	try {
-		const timerPrefix = `[${timerCounter}:${attempt || '*'}] `
-		if (!attempt)
-			console.time(timerPrefix + 'fetch')
+		// modify request
 		const
 			method = params[SearchParam.METHOD] || req.method,
-			request = new Request(req, {
+			newReq = new Request(req, {
 				method,
-				body: (method.toUpperCase() === 'GET' ? undefined : params[SearchParam.BODY])
-					?? throttleBody((retry > attempt ? req.clone() : req).body, throttle),
-				headers: new Headers(reqHeaders),
+				body: (method.toUpperCase() === 'GET'
+					? undefined : streamify(params[SearchParam.BODY]))
+					?? throttleBody(
+						(doRunCustom || retry > attempt ? req.clone() : req).body,
+						throttle
+					),
+				headers: delSetHeaders(req.headers, searchParams),
 				signal: AbortSignal.any([
 					req.signal,
 					...timeout ? [AbortSignal.timeout(timeout)] : [],
 				]),
 				// @ts-expect-error
 				duplex: 'half',
-			}),
+			})
 		// send requests
-			requestAborters = urls.map(() => new AbortController()),
-			responsePromises = urls.map((url, index) =>
-				fetch(defaultProtocol(url), new Request(
-					index ? request.clone() : request,
-					{
-						signal: AbortSignal.any([
-							request.signal,
-							requestAborters[index].signal,
-						]),
-					}
-				)).then(res => {
-					requestAborters.splice(index, 1)
-					return res
-				})
-			),
-			responsesPromise = Promise.allSettled(responsePromises)
-		// get response(s)
-		let
-			responses: PromiseSettledResult<Response>[] = [],
-			res: Response
-		if (params[SearchParam.FASTEST] === undefined) {
-			responses = await responsesPromise
-			if (responses[0].status === 'rejected')
-				throw responses[0].reason
-			else
-				res = responses[0].value
-			responses.shift()
-		}
-		else {
-			res = await Promise.race(responsePromises)
-			requestAborters.forEach(aborter => aborter.abort())
-		}
-		// get response headers
-		const resHeaders: Record<string, string | string[]> = {
-			...Object.fromEntries(res.headers),
-			[Header.CONTENT_ENCODING]:
-				contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
-		}
+		if (!attempt)
+			console.time(consolePrefix + 'fetch')
+		const {res, responses} = await fetchMulti(newReq, searchParams)
 		if (retry === attempt)
-			console.timeEnd(timerPrefix + 'fetch')
-		// fix response headers: https://github.com/nodejs/undici/issues/2514
-		if (resHeaders[Header.CONTENT_ENCODING]) {
-			delete resHeaders[Header.CONTENT_LENGTH]
-			resHeaders[Header.TRANSFER_ENCODING] = TRANSFER_ENCODING_CHUNKED
-		}
-		else
-			delete resHeaders[Header.CONTENT_ENCODING]
-		// add extra responses header
+			console.timeEnd(consolePrefix + 'fetch')
+		// modify response
 		if (responses.length)
-			resHeaders[Header.X_RESPONSES] = JSON.stringify(
+			res.headers.set(Header.X_RESPONSES, JSON.stringify(
 				responses.map(result =>
 					result.status === 'fulfilled' ? result.value.status : null
 				)
-			)
-		// get cookies
-		if (res.headers.getSetCookie().length)
-			resHeaders[Header.SET_COOKIE] = res.headers.getSetCookie()
-		// delete response headers
-		;[
-			...clean !== undefined ? [] : SearchDefaults.DEL_RES_HEADERS,
-			...tryParse<string[]>(params[SearchParam.DEL_RES_HEADERS], isArray) ?? [],
-		]
-			?.forEach(name => deleteWildcard(resHeaders, name))
-		// overwrite response headers
-		Object.assign(resHeaders,
-			clean !== undefined ? [] : lowerKeys(SearchDefaults.RES_HEADERS ?? {}),
-			lowerKeys(Object.fromEntries(new Headers(
-				tryParse<StringRecord>(params[SearchParam.RES_HEADERS], isRecord)
-			)))
-		)
-		// set cookies
+			))
 		const
-			headers = new Headers(resHeaders as StringRecord),
-			cookieHeader = resHeaders[Header.SET_COOKIE]
-		if (isArray(cookieHeader)) {
-			headers.delete(Header.SET_COOKIE)
-			cookieHeader.forEach(value => headers.append(Header.SET_COOKIE, value))
-		}
-		// clone response
-		return new Response(
+			acceptEncoding = resolveAcceptHeader(req.headers.get(Header.ACCEPT_ENCODING),
+				ACCEPT_ENCODING_HEADER_ALL, AcceptEncodingHeader.ANY),
+			contentEncoding = acceptEncoding === AcceptEncodingHeader.ANY
+				? AcceptEncodingHeader.DEFAULT : acceptEncoding,
+			{request, body: newResBody, ...newResInit} = await processCustom(req, newReq, res, responses.map(
+				response => response.status === 'fulfilled' ? response.value : null
+			), {
+				body: doRunCustom ? res.clone().body : res.body,
+				headers: processResHeaders(res.headers, searchParams, contentEncoding),
+				status: status || res.status,
+				statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
+			}, doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined)
+		// pipe response
+		return request ? await proxy(request, consoleCounter, depth + 1, 0) : new Response(
 			trackBody(
 				encodeBody(
-					throttleBody(res.body, throttle),
+					throttleBody(
+						transformBody(newResBody, resbody, req.signal),
+						throttle
+					),
 					contentEncoding,
 					req.signal
 				),
-				timerPrefix
+				consolePrefix
 			),
-		{
-			headers,
-			status: status || res.status,
-			statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
-		})
+		newResInit)
 	}
 	catch (error) {
-		console.error(error)
+		console.error(consolePrefix + 'error', error)
 		// retry in
 		if (retry > attempt && retryIn)
 			await new Promise(resolve => setTimeout(resolve, retryIn))
-		if (req.signal?.aborted)
-			throw req.signal.reason ?? getAbortError()
+		checkAbortSignal(req.signal)
 		return retry > attempt
-			? await proxy(req, timerCounter, ++attempt)
+			? await proxy(req, consoleCounter, depth, attempt + 1)
 			: await helpResponse(req, HttpStatus.INTERNAL_SERVER_ERROR,
 				error?.toString() ?? 'Unknown error'
 			)
@@ -615,13 +858,18 @@ let c = 0
 
 export default {
 	fetch: async (req: Request) => {
+		const n = c++, consolePrefix = `[${n || '*'}:*:*] `
 		req.signal?.addEventListener('abort', () =>
-			console.debug(`[${n}:*] abort`),
+			console.debug(consolePrefix + 'abort'),
 		{once: true})
-		const n = c++
-		console.time(`[${n}:*] proxy`)
+		// console.log(`${consolePrefix}headers:\n${
+		// 	JSON.stringify(Object.fromEntries(req.headers), undefined, '\t')
+		// 		.replaceAll(',\n\t', '\n')
+		// 		.slice(3, -2)
+		// }`)
+		console.time(consolePrefix + 'proxy')
 		return await proxy(req, n).finally(() =>
-			console.timeEnd(`[${n}:*] proxy`)
+			console.timeEnd(consolePrefix + 'proxy')
 		)
 	}
 }

@@ -9,6 +9,7 @@ http://localhost:3000/api/proxy?url=<url,multi>
   [&skipdefaults]
   [&method=<http_method>]
   [&body=<body_text>]
+  [&resbody=<action>]
   [&status=<status_code>]
   [&statustext=<status_message>]
   [&retry=<limit=0>]
@@ -18,7 +19,7 @@ http://localhost:3000/api/proxy?url=<url,multi>
 ```
 
 ## URL Parameters
-- `url` - resource URL, default `https`, repeatable, first response used, others in `X-Responses`
+- `url` - resource URL, default `http`, *repeatable*, first response used, others in `X-Responses`
 - `fastest` - return first completed response, abort others
 - `headers` - request headers to overwrite, in addition to:
   ```json
@@ -36,9 +37,55 @@ http://localhost:3000/api/proxy?url=<url,multi>
 - `skipdefaults` - do not apply default header changes
 - `method` - HTTP method override
 - `body` - request body text
+- `resbody` - response transformation:
+  - `null` - remove response body
+  - `atob` - decode body from base64
+  - `btoa` - encode body to base64
+  - `javascript:…` - [custom handler](#typescript-declaration-of-resbodyjavascript), returns body, response or request
 - `status` - response status code to overwrite
 - `statustext` - response status message to overwrite
 - `retry` - retries after first request
 - `retryin` - milliseconds between retries
 - `timeout` - milliseconds to abort request after
 - `throttle` - bandwidth limit in kbit/s
+
+### TypeScript Declaration of `resbody=javascript:…`
+```typescript
+declare function custom(
+    // request with parameters applied
+    req: RequestView,
+    // first or fastest response with parameters applied
+    res: ResponseView,
+    // other responses, null if error
+    responses: Array<ResponseView | null>
+): CustomResult
+
+interface ReqResView {
+    url: string
+    headers: Record<string, string>
+    // body:
+    bytes: Uint8Array
+    text: string
+    json: any
+}
+
+interface RequestView extends ReqResView {
+    method: string
+}
+
+interface ResponseView extends ReqResView {
+    cookies: string[]
+    ok: boolean
+    redirected: boolean
+    status: number
+    statusText: string
+}
+
+type CustomResult =
+    | Request                     // replace original request and refetch response
+    | Response                    // replace original response
+    | undefined                   // return original response
+    | ReadableStream | Uint8Array // replace response body with value
+    | unknown                     // replace response body with coerced value?.toString()
+    | null                        // remove response body
+```
