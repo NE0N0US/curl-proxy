@@ -1,3 +1,12 @@
+// #region - env
+
+const PROXY_RECURSION_MAX = +(process.env.PROXY_RECURSION_MAX || 64)
+
+// https://vercel.com/docs/functions/configuring-functions/duration#duration-limits
+const GLOBAL_TIMEOUT = +(process.env.GLOBAL_TIMEOUT || 300_000)
+
+// #endregion
+
 // #region - imports
 
 import fs from 'node:fs'
@@ -7,13 +16,15 @@ import stream from 'node:stream'
 import vm from 'node:vm'
 import undici from 'undici'
 
-const GLOBAL_TIMEOUT = 300_000
-
 undici.setGlobalDispatcher(new undici.Agent({
-	// https://vercel.com/docs/functions/configuring-functions/duration#duration-limits
 	connect: {timeout: GLOBAL_TIMEOUT},
+	headersTimeout: GLOBAL_TIMEOUT,
+	bodyTimeout: GLOBAL_TIMEOUT,
+	keepAliveMaxTimeout: GLOBAL_TIMEOUT,
 	strictContentLength: false,
 	allowH2: true,
+	autoSelectFamily: true,
+	maxHeaderSize: 2 ** 16,
 }))
 
 enum Filename {
@@ -40,6 +51,7 @@ enum HttpStatus {
 	OK = 200,
 	BAD_REQUEST = 400,
 	INTERNAL_SERVER_ERROR = 500,
+	LOOP_DETECTED = 508,
 }
 
 enum Header {
@@ -49,8 +61,11 @@ enum Header {
 	CONTENT_ENCODING = 'content-encoding',
 	CONTENT_LENGTH = 'content-length',
 	TRANSFER_ENCODING = 'transfer-encoding',
+	CONNECTION = 'Connection',
+	HOST = 'Host',
 	SET_COOKIE = 'set-cookie',
 	X_RESPONSES = 'x-responses',
+	X_PROXY_RECURSION = 'x-proxy-recursion',
 }
 
 const TRANSFER_ENCODING_CHUNKED = 'chunked'
@@ -94,20 +109,27 @@ enum SearchParam {
 	STATUS_TEXT = 'statustext',
 	RETRY = 'retry',
 	RETRY_IN = 'retryin',
+	RETRY_FACTOR = 'retryfactor',
+	RETRY_LIMIT = 'retrylimit',
 	TIMEOUT = 'timeout',
 	THROTTLE = 'throttle',
 }
 
 const SearchDefaults = Object.freeze({
 	DEL_HEADERS: Object.freeze([
+		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
+		'Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Proxy-Authorization',
+		'Trailer', 'Transfer-Encoding', 'TE', 'Upgrade',
 		// https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/304
 		'Cache-Control', 'Pragma', 'If-Modified-Since', 'If-None-Match',
-		// proxy address
-		'Origin', 'Referer', 'Forwarded', 'X-Forwarded-For', 'X-Forwarded-Host',
+		// real addresses
+		'Origin', 'Referer', 'Via', 'Forwarded', 'X-Forwarded-*', '*-IP',
+		// browser data
+		'Sec-CH-*', 'Sec-Fetch-*',
+		// for Access-Control-Allow-Origin
+		'Access-Control-Allow-Credentials',
 	]),
-	HEADERS: Object.freeze({
-		'Sec-Fetch-Site': 'same-site',
-	}),
+	HEADERS: Object.freeze({}),
 	DEL_RES_HEADERS: Object.freeze([]),
 	RES_HEADERS: Object.freeze({
 		'Access-Control-Allow-Origin': '*',
@@ -175,6 +197,8 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n  [&${SearchParam.STATUS_TEXT}=<status_message>]` +
 			`\n  [&${SearchParam.RETRY}=<limit=0>]` +
 			`\n  [&${SearchParam.RETRY_IN}=<milliseconds=0>]` +
+			`\n  [&${SearchParam.RETRY_FACTOR}=<number=1>]` +
+			`\n  [&${SearchParam.RETRY_LIMIT}=<milliseconds=Infinity>]` +
 			`\n  [&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
 			`\n  [&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
 			// url params
@@ -188,11 +212,11 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			}\n` +
 			`* ${SearchParam.FASTEST.padEnd(width)} - return first completed response, abort others\n` +
 			// headers
-			`* ${SearchParam.HEADERS.padEnd(width)} - request headers to overwrite` +
+			`* ${SearchParam.HEADERS.padEnd(width)} - request headers to overwrite (Host is determined dynamically)` +
 			(isRecord(SearchDefaults.HEADERS) ? ', in addition to:\n' : '\n') +
 			(isRecord(SearchDefaults.HEADERS) ? `  ${formatStringRecord(SearchDefaults.HEADERS)}\n` : '') +
 			// delheaders
-			`* ${SearchParam.DEL_HEADERS.padEnd(width)} - names of request headers to delete` +
+			`* ${SearchParam.DEL_HEADERS.padEnd(width)} - names of request headers to delete (Connection is deleted along with headers listed in it, * is a wildcard)` +
 			(isArray(SearchDefaults.DEL_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isArray(SearchDefaults.DEL_HEADERS) ? `  ${formatStringArray(SearchDefaults.DEL_HEADERS)}\n` : '') +
 			// resheaders
@@ -200,11 +224,15 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			(isRecord(SearchDefaults.RES_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isRecord(SearchDefaults.RES_HEADERS) ? `  ${formatStringRecord(SearchDefaults.RES_HEADERS)}\n` : '') +
 			// delresheaders
-			`* ${SearchParam.DEL_RES_HEADERS.padEnd(width)} - names of response headers to delete` +
+			`* ${SearchParam.DEL_RES_HEADERS.padEnd(width)} - names of response headers to delete (* is a wildcard)` +
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? `  ${formatStringArray(SearchDefaults.DEL_RES_HEADERS)}\n` : '') +
 			// other params
-			(`* ${SearchParam.SKIP_DEFAULTS.padEnd(width)} - do not apply default header changes\n`) +
+			(`* ${
+				SearchParam.SKIP_DEFAULTS.padEnd(width)
+			} - do not apply default header changes, except safety behavior and setting ${
+				formatHttpHeader(Header.X_PROXY_RECURSION)
+			} (maximum ${PROXY_RECURSION_MAX})\n`) +
 			`* ${SearchParam.METHOD.padEnd(width)} - HTTP method override\n` +
 			`* ${SearchParam.BODY.padEnd(width)} - request body text\n` +
 			// resbody
@@ -217,12 +245,20 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`* ${SearchParam.STATUS.padEnd(width)} - response status code to overwrite\n` +
 			`* ${SearchParam.STATUS_TEXT.padEnd(width)} - response status message to overwrite\n` +
 			`* ${SearchParam.RETRY.padEnd(width)} - retries after first request\n` +
-			`* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries\n` +
+			`* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries, supports exponential backoff:\n` +
+			`  min(in * (factor ^ attempt), limit)\n` +
+			`* ${SearchParam.RETRY_FACTOR.padEnd(width)} - backoff multiplier per retry\n` +
+			`* ${SearchParam.RETRY_LIMIT.padEnd(width)} - backoff maximum milliseconds\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after\n` +
 			`* ${SearchParam.THROTTLE.padEnd(width)} - bandwidth limit in kbit/s` +
+			// headers safety behavior
+			`\n\nHeaders Safety Behavior\n` +
+			`// https://github.com/nodejs/undici/issues/2514\nif (headers.get('Content-Encoding')) {\n  headers.delete('Content-Encoding')\n  headers.delete('Content-Length')\n}\n// recompress\nconst contentEncoding = resolveAcceptHeader(headers.get('Accept-Encoding')) || 'gzip'\nif (contentEncoding !== 'identity') {\n  headers.set('Content-Encoding', contentEncoding)\n  headers.delete('Content-Length')\n  headers.set('Transfer-Encoding', 'chunked')\n}\n// resbody param\nif (['null', 'atob', 'btoa'].includes(params.get('resbody')?.toLowerCase()))\n  headers.delete('Content-Length')` +
+			`\n\nAfter running resbody custom handler\n` +
+			`if (!result instanceof Request && !result instanceof Response && result !== undefined)\n  headers.delete('Content-Length')` +
 			// typescript declaration of resbody javascript
-			`\n\TypeScript Declaration of "resbody=javascript:*"\n` +
-			`declare function custom(\n    // request with parameters applied\n    req: RequestView,\n    // first or fastest response with parameters applied\n    res: ResponseView,\n    // other responses, null if error\n    responses: Array<ResponseView | null>\n): CustomResult\n\ninterface ReqResView {\n    url: string\n    headers: Record<string, string>\n    // body:\n    bytes: Uint8Array\n    text: string\n    json: any\n}\n\ninterface RequestView extends ReqResView {\n    method: string\n}\n\ninterface ResponseView extends ReqResView {\n    cookies: string[]\n    ok: boolean\n    redirected: boolean\n    status: number\n    statusText: string\n}\n\ntype CustomResult =\n    | Request                     // replace original request and refetch response\n    | Response                    // replace original response\n    | undefined                   // return original response\n    | ReadableStream | Uint8Array // replace response body with value\n    | unknown                     // replace response body with coerced value?.toString()\n    | null                        // remove response body`
+			`\n\nTypeScript Declaration of "resbody=javascript:*"\n` +
+			`declare function custom(\n  // request with parameters applied\n  req: RequestView,\n  // first or fastest response with parameters applied\n  res: ResponseView,\n  // other responses, null if error\n  responses: Array<ResponseView | null>\n): CustomResult\ninterface ReqResView {\n  url: string\n  headers: Record<string, string>\n  // body:\n  bytes: Uint8Array\n  text: string\n  json: any\n}\ninterface RequestView extends ReqResView {\n  method: string\n}\ninterface ResponseView extends ReqResView {\n  cookies: string[]\n  ok: boolean\n  redirected: boolean\n  status: number\n  statusText: string\n}\ntype CustomResult =\n  | Request                     // replace original request and refetch response\n  | Response                    // replace original response\n  | undefined                   // return original response\n  | ReadableStream | Uint8Array // replace response body with value\n  | unknown                     // replace response body with coerced value?.toString()\n  | null                        // remove response body`
 	return html ? fileText(Filename.TEMPLATE_HELP)
 		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
@@ -247,7 +283,10 @@ async function helpResponse(req: Request, status = HttpStatus.OK, message?: stri
 			})
 			.then(res => res.text())
 			.then(html =>
-				fileText(Filename.TEMPLATE_MD).replace(TEMPLATE_CONTENT, html)
+				fileText(Filename.TEMPLATE_MD).replace(
+					TEMPLATE_CONTENT,
+					html.replaceAll('href="#', 'href="#user-content-')
+				)
 			)
 			.catch(() => formatHelp(message, req.url, acceptHtml))
 			: formatHelp(message, req.url, acceptHtml)
@@ -315,21 +354,16 @@ function escapeRegex(text: string) {
 	return text.replace(/[\^\$\.\*\+\?\(\)\[\]\{\}\|]/g, char => '\\' + char)
 }
 
-function deleteWildcard<T>(record: Record<string, T>, key: string) {
+function deleteHeadersWildcard(headers: Headers, key: string) {
 	const regex = new RegExp('^' + key.replace(/./g, char =>
 		char === '*' ? '.*' : escapeRegex(char)
 	) + '$', 'i')
-	Object.keys(record).forEach(key => {
+	headers.keys().forEach(key => {
 		if (key.match(regex))
-			delete record[key]
+			while (headers.has(key))
+				headers.delete(key)
 	})
-	return record
-}
-
-function lowerKeys<T>(record: Record<string, T>): typeof record {
-	return Object.fromEntries(
-		Object.entries(record).map(([k, v]) => [k.toLowerCase(), v])
-	)
+	return headers
 }
 
 function getAbortError(message = 'Aborted') {
@@ -427,10 +461,12 @@ function parseParams(searchParams: URLSearchParams) {
 			[SearchParam.TIMEOUT]: timeoutParam,
 			...params
 		} = Object.fromEntries(searchParams),
-		[status, retry, retryIn, throttle] = [
+		[status, retry, retryIn, retryFactor, retryLimit, throttle] = [
 			SearchParam.STATUS,
 			SearchParam.RETRY,
 			SearchParam.RETRY_IN,
+			SearchParam.RETRY_FACTOR,
+			SearchParam.RETRY_LIMIT,
 			SearchParam.THROTTLE,
 		].map(key => {
 			const param = params[key]
@@ -439,79 +475,85 @@ function parseParams(searchParams: URLSearchParams) {
 		}),
 		doRunCustom = resbody?.startsWith(ResBodyParam.JAVASCRIPT),
 		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
-	return {params, resbody, status, retry, retryIn, throttle, doRunCustom, timeout}
+	return {params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, doRunCustom, timeout}
 }
 
+function parseRecursionHeader(headers: Headers, fallback = 0) {
+	const recursionParam = headers.get(Header.X_PROXY_RECURSION)?.split(',')[0]!
+	return Number.isSafeInteger(+recursionParam) && +recursionParam >= 0
+		? +recursionParam : fallback
+}
+
+/** `Connection` is deleted along with headers listed in it */
 function delSetHeaders(headers: Headers, params: URLSearchParams) {
-	const record = Object.fromEntries(headers)
+	const connection = headers.get(Header.CONNECTION)
 	;[
 		...params.get(SearchParam.SKIP_DEFAULTS) !== null
-			? [] : SearchDefaults.DEL_HEADERS,
+			? [] : SearchDefaults.DEL_HEADERS ?? [],
 		...tryParse<string[]>(params.get(SearchParam.DEL_HEADERS), isArray) ?? [],
 	]
-		?.forEach(name => deleteWildcard(record, name))
-	Object.assign(record,
-		params.get(SearchParam.SKIP_DEFAULTS) !== null
-			? [] : lowerKeys(SearchDefaults.HEADERS ?? {}),
-		lowerKeys(
-			tryParse<StringRecord>(params.get(SearchParam.HEADERS), isRecord) ?? {}
-		)
-	)
-	return new Headers(record)
+		?.forEach(name => deleteHeadersWildcard(headers, name))
+	if (connection && !headers.get(Header.CONNECTION))
+		connection.split(',').map(name => name.trim())
+			.forEach(name => deleteHeadersWildcard(headers, name))
+	Object.entries({
+		...params.get(SearchParam.SKIP_DEFAULTS) !== null
+			? {} : SearchDefaults.HEADERS,
+		...tryParse<StringRecord>(params.get(SearchParam.HEADERS), isRecord)
+	})
+		.forEach(([name, value]) => headers.set(name, value as string))
+	return headers
 }
 
+/** body is chunked and length is unknown */
 function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string) {
-	// get headers
-	const resHeaders: Record<string, string | string[]> = {
-		...Object.fromEntries(headers),
-		[Header.CONTENT_ENCODING]:
-			contentEncoding === AcceptEncodingHeader.IDENTITY ? '' : contentEncoding,
-	}
 	// fix headers: https://github.com/nodejs/undici/issues/2514
-	if (resHeaders[Header.CONTENT_ENCODING]) {
-		delete resHeaders[Header.CONTENT_LENGTH]
-		resHeaders[Header.TRANSFER_ENCODING] = TRANSFER_ENCODING_CHUNKED
+	if (headers.get(Header.CONTENT_ENCODING)) {
+		headers.delete(Header.CONTENT_ENCODING)
+		headers.delete(Header.CONTENT_LENGTH)
 	}
-	else
-		delete resHeaders[Header.CONTENT_ENCODING]
-	// get cookies
-	if (headers.getSetCookie().length)
-		resHeaders[Header.SET_COOKIE] = headers.getSetCookie()
+	// recompress
+	if (contentEncoding !== AcceptEncodingHeader.IDENTITY) {
+		headers.set(Header.CONTENT_ENCODING, contentEncoding)
+		headers.delete(Header.CONTENT_LENGTH)
+		headers.set(Header.TRANSFER_ENCODING, TRANSFER_ENCODING_CHUNKED)
+	}
+	// resbody param
+	if ([ResBodyParam.NULL, ResBodyParam.ATOB, ResBodyParam.BTOA]
+		.includes(params.get(SearchParam.RES_BODY)?.toLowerCase() as ResBodyParam)
+	)
+		headers.delete(Header.CONTENT_LENGTH)
 	// delete headers
 	;[
 		...params.get(SearchParam.SKIP_DEFAULTS) !== null ? []
-			: SearchDefaults.DEL_RES_HEADERS,
+			: SearchDefaults.DEL_RES_HEADERS ?? [],
 		...tryParse<string[]>(params.get(SearchParam.DEL_RES_HEADERS), isArray) ?? [],
 	]
-		?.forEach(name => deleteWildcard(resHeaders, name))
+		?.forEach(name => deleteHeadersWildcard(headers, name))
 	// overwrite headers
-	Object.assign(resHeaders,
-		params.get(SearchParam.SKIP_DEFAULTS) !== null ? []
-			: lowerKeys(SearchDefaults.RES_HEADERS ?? {}),
-		lowerKeys(
-			tryParse<StringRecord>(params.get(SearchParam.RES_HEADERS), isRecord) ?? {}
-		)
-	)
-	// set cookies
-	const
-		newHeaders = new Headers(resHeaders as StringRecord),
-		cookieHeader = resHeaders[Header.SET_COOKIE]
-	if (isArray(cookieHeader)) {
-		newHeaders.delete(Header.SET_COOKIE)
-		cookieHeader.forEach(value => newHeaders.append(Header.SET_COOKIE, value))
-	}
-	return newHeaders
+	Object.entries({
+		...params.get(SearchParam.SKIP_DEFAULTS) !== null
+			? {} : SearchDefaults.RES_HEADERS,
+		...tryParse<StringRecord>(params.get(SearchParam.RES_HEADERS), isRecord)
+	})
+		.forEach(([name, value]) => headers.set(name, value as string))
+	return headers
 }
 
 async function fetchMulti(request: Request, params: URLSearchParams) {
 	// send requests
 	const
-		urls = params.getAll(SearchParam.URL),
+		urls = params.getAll(SearchParam.URL)
+			.map(url => defaultProtocol(url)),
 		requestAborters = urls.map(() => new AbortController()),
-		responsePromises = urls.map((url, index) =>
-			fetch(defaultProtocol(url), new Request(
+		responsePromises = urls.map((url, index) => {
+			const headers = request.headers
+			if (params.get(SearchParam.SKIP_DEFAULTS) === null)
+				headers.set(Header.HOST, new URL(url).host)
+			return fetch(url, new Request(
 				index ? request.clone() : request,
 				{
+					headers,
 					signal: AbortSignal.any([
 						request.signal,
 						requestAborters[index].signal,
@@ -521,7 +563,7 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 				requestAborters.splice(index, 1)
 				return res
 			})
-		),
+		}),
 		responsesPromise = Promise.allSettled(responsePromises)
 	// get response(s)
 	let
@@ -622,16 +664,25 @@ async function processCustom(
 		code
 	)
 	checkAbortSignal(req.signal)
+	let deleteContentLength
 	if (result instanceof Request)
 		state.request = result
 	if (result instanceof Response)
 		Object.assign(state, result)
-	else if (result instanceof ReadableStream || result === null)
+	else if (result instanceof ReadableStream || result === null) {
 		state.body = result
-	else if (result instanceof Uint8Array)
+		deleteContentLength = true
+	}
+	else if (result instanceof Uint8Array) {
 		state.body = streamify(result as Uint8Array<ArrayBuffer>)
-	else if(result !== undefined)
+		deleteContentLength = true
+	}
+	else if(result !== undefined) {
 		state.body = streamify(result?.toString())
+		deleteContentLength = true
+	}
+	if (deleteContentLength)
+		(state.headers as Headers).delete(Header.CONTENT_LENGTH)
 	return state
 }
 
@@ -774,9 +825,14 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 	checkAbortSignal(req.signal)
 	const
 		searchParams = new URL(req.url).searchParams,
-		{params, resbody, status, retry, retryIn, throttle, doRunCustom, timeout} =
+		{params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, doRunCustom, timeout} =
 			parseParams(searchParams),
 		consolePrefix = `[${consoleCounter || '*'}:${depth || '*'}:${attempt || '*'}] `
+	let recursion = parseRecursionHeader(req.headers)
+	if (recursion > PROXY_RECURSION_MAX)
+		return await helpResponse(req, HttpStatus.LOOP_DETECTED,
+			`Proxy recursion limit of ${PROXY_RECURSION_MAX} exceeded`
+		)
 	if (!searchParams.get(SearchParam.URL))
 		return await helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter`)
 	try {
@@ -802,12 +858,25 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 		// send requests
 		if (!attempt)
 			console.time(consolePrefix + 'fetch')
-		const {res, responses} = await fetchMulti(newReq, searchParams)
+		const
+			{res, responses} = await fetchMulti(newReq, searchParams),
+			resHeaders = new Headers(res.headers)
 		if (retry === attempt)
 			console.timeEnd(consolePrefix + 'fetch')
+		recursion = Math.max(
+			recursion,
+			parseRecursionHeader(res.headers),
+			...responses.map(res => res.status === 'fulfilled'
+				? parseRecursionHeader(res.value.headers) : 0
+			)
+		)
+		if (recursion > PROXY_RECURSION_MAX)
+			return await helpResponse(req, HttpStatus.LOOP_DETECTED,
+				`Proxy recursion limit of ${PROXY_RECURSION_MAX} exceeded`
+			)
 		// modify response
 		if (responses.length)
-			res.headers.set(Header.X_RESPONSES, JSON.stringify(
+			resHeaders.set(Header.X_RESPONSES, JSON.stringify(
 				responses.map(result =>
 					result.status === 'fulfilled' ? result.value.status : null
 				)
@@ -821,10 +890,15 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 				response => response.status === 'fulfilled' ? response.value : null
 			), {
 				body: doRunCustom ? res.clone().body : res.body,
-				headers: processResHeaders(res.headers, searchParams, contentEncoding),
+				headers: processResHeaders(resHeaders, searchParams, contentEncoding),
 				status: status || res.status,
 				statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
 			}, doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined)
+		if (request)
+			request.headers.set(Header.X_PROXY_RECURSION, (recursion + 1)?.toString())
+		// processCustom can return headers from new Response
+		newResInit.headers = new Headers(newResInit.headers)
+		newResInit.headers.set(Header.X_PROXY_RECURSION, (recursion + 1)?.toString())
 		// pipe response
 		return request ? await proxy(request, consoleCounter, depth + 1, 0) : new Response(
 			trackBody(
@@ -844,7 +918,10 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 		console.error(consolePrefix + 'error', error)
 		// retry in
 		if (retry > attempt && retryIn)
-			await new Promise(resolve => setTimeout(resolve, retryIn))
+			await new Promise(resolve => setTimeout(
+				resolve,
+				Math.min(retryIn * ((retryFactor || 1) ** attempt), retryLimit || Infinity)
+			))
 		checkAbortSignal(req.signal)
 		return retry > attempt
 			? await proxy(req, consoleCounter, depth, attempt + 1)

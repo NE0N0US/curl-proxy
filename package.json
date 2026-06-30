@@ -1,6 +1,6 @@
 {
 	"name": "url-proxy",
-	"version": "2026-06-28",
+	"version": "2026-06-30",
 	"engines": {
 		"node": "^24.0.0"
 	},
