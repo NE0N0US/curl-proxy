@@ -44,6 +44,8 @@ type Bytes = Uint8Array<ArrayBuffer>
 type Body = ReadableStream<Bytes> | null | undefined
 
 enum HttpMethod {
+	GET = 'GET',
+	HEAD = 'HEAD',
 	POST = 'POST',
 }
 
@@ -551,7 +553,8 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 			if (params.get(SearchParam.SKIP_DEFAULTS) === null)
 				headers.set(Header.HOST, new URL(url).host)
 			return fetch(url, new Request(
-				index ? request.clone() : request,
+				urls.length > 1 || params.get(SearchParam.RES_BODY)
+					?.startsWith(ResBodyParam.JAVASCRIPT) ? request.clone() : request,
 				{
 					headers,
 					signal: AbortSignal.any([
@@ -569,7 +572,7 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 	let
 		responses: PromiseSettledResult<Response>[] = [],
 		res: Response
-	if (params.get(SearchParam.FASTEST) === undefined) {
+	if (params.get(SearchParam.FASTEST) === null) {
 		responses = await responsesPromise
 		if (responses[0].status === 'rejected')
 			throw responses[0].reason
@@ -645,20 +648,14 @@ async function runCustom(
 }
 
 async function processCustom(
-	req: Request, newReq: Request,
-	res: Response, responses: Array<Response | null>,
+	req: Request, res: Response, responses: Array<Response | null>,
 	state: {request?: Request, body?: Body} & ResponseInit,
 	code: string | undefined
 ) {
 	if (code === undefined)
 		return state
 	const result = await runCustom(
-		new Request(newReq, {
-			body: newReq.body instanceof ReadableStream
-				? req.body : streamify(newReq.body),
-			// @ts-expect-error
-			duplex: 'half',
-		}),
+		req,
 		new Response(res.body, state),
 		responses,
 		code
@@ -838,13 +835,13 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 	try {
 		// modify request
 		const
-			method = params[SearchParam.METHOD] || req.method,
+			method = (params[SearchParam.METHOD] || req.method).toUpperCase(),
 			newReq = new Request(req, {
 				method,
-				body: (method.toUpperCase() === 'GET'
+				body: ([HttpMethod.GET, HttpMethod.HEAD].includes(method as HttpMethod)
 					? undefined : streamify(params[SearchParam.BODY]))
 					?? throttleBody(
-						(doRunCustom || retry > attempt ? req.clone() : req).body,
+						(retry > attempt ? req.clone() : req).body,
 						throttle
 					),
 				headers: delSetHeaders(req.headers, searchParams),
@@ -886,7 +883,7 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 				ACCEPT_ENCODING_HEADER_ALL, AcceptEncodingHeader.ANY),
 			contentEncoding = acceptEncoding === AcceptEncodingHeader.ANY
 				? AcceptEncodingHeader.DEFAULT : acceptEncoding,
-			{request, body: newResBody, ...newResInit} = await processCustom(req, newReq, res, responses.map(
+			{request, body: newResBody, ...newResInit} = await processCustom(newReq, res, responses.map(
 				response => response.status === 'fulfilled' ? response.value : null
 			), {
 				body: doRunCustom ? res.clone().body : res.body,
