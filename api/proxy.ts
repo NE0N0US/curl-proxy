@@ -149,6 +149,7 @@ enum SearchParam {
 	RETRY_LIMIT = 'retrylimit',
 	TIMEOUT = 'timeout',
 	THROTTLE = 'throttle',
+	THROTTLE_UP = 'throttleup',
 }
 
 const SearchDefaults = Object.freeze({
@@ -225,7 +226,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
 			// usage
 			`Usage:\n${url.origin}${url.pathname}?` +
-			`\n  ${SearchParam.URL}=<url,multi>` +
+			`${SearchParam.URL}=<url,multi>` +
 			`\n  [&${SearchParam.FASTEST}]` +
 			`\n  [&${SearchParam.HEADERS}=<json_object>]` +
 			`\n  [&${SearchParam.DEL_HEADERS}=<json_array>]` +
@@ -243,6 +244,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n  [&${SearchParam.RETRY_LIMIT}=<milliseconds=Infinity>]` +
 			`\n  [&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
 			`\n  [&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
+			`\n  [&${SearchParam.THROTTLE_UP}=<kbps=Infinity>]` +
 			// url params
 			`\n\nURL Parameters:\n` +
 			`* ${
@@ -284,10 +286,10 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			// other params
 			(`* ${
 				SearchParam.SKIP_DEFAULTS.padEnd(width)
-			} - do not apply default header changes, except safety behavior and setting ${
+			} - do not apply default header changes, except response safety behavior and setting response ${
 				formatHttpHeader(Header.X_PROXY_RECURSION)
 			} (max. ${PROXY_RECURSION_MAX})\n`) +
-			`* ${SearchParam.METHOD.padEnd(width)} - HTTP method override\n` +
+			`* ${SearchParam.METHOD.padEnd(width)} - request method override\n` +
 			`* ${SearchParam.BODY.padEnd(width)} - request body text\n` +
 			// resbody
 			`* ${SearchParam.RES_BODY.padEnd(width)} - response transformation:\n` +
@@ -301,18 +303,29 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`* ${SearchParam.RETRY.padEnd(width)} - retries after first request\n` +
 			`* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries, supports exponential backoff:\n` +
 			`  min(in * (factor ^ attempt), limit)\n` +
-			`* ${SearchParam.RETRY_FACTOR.padEnd(width)} - backoff multiplier per retry\n` +
+			`* ${SearchParam.RETRY_FACTOR.padEnd(width)} - backoff multiplier per retry (industry standard is 2)\n` +
 			`* ${SearchParam.RETRY_LIMIT.padEnd(width)} - backoff maximum milliseconds\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after\n` +
-			`* ${SearchParam.THROTTLE.padEnd(width)} - bandwidth limit in kbit/s` +
-			// headers safety behavior
-			`\n\nHeaders Safety Behavior\n` +
+			`* ${SearchParam.THROTTLE.padEnd(width)} - bidirectional bandwidth limit in kbit/s\n` +
+			`* ${SearchParam.THROTTLE_UP.padEnd(width)} - upload bandwidth limit in kbit/s` +
+			// response headers safety
+			`\n\nResponse Headers Safety\n` +
 			`// https://github.com/nodejs/undici/issues/2514\nif (headers.get('Content-Encoding')) {\n  headers.delete('Content-Encoding')\n  headers.delete('Content-Length')\n}\n// recompress\nconst contentEncoding = resolveAcceptHeader(headers.get('Accept-Encoding')) || 'gzip'\nif (contentEncoding !== 'identity') {\n  headers.set('Content-Encoding', contentEncoding)\n  headers.delete('Content-Length')\n  headers.set('Transfer-Encoding', 'chunked')\n}\n// resbody param\nif (['null', 'atob', 'btoa'].includes(params.get('resbody')?.toLowerCase()))\n  headers.delete('Content-Length')` +
 			`\n\nAfter running resbody custom handler\n` +
 			`if (!result instanceof Request && !result instanceof Response && result !== undefined)\n  headers.delete('Content-Length')` +
 			// typescript declaration of resbody javascript
 			`\n\nTypeScript Declaration of "resbody=javascript:*"\n` +
-			`declare function custom(\n  // request with parameters applied\n  req: RequestView,\n  // first or fastest response with parameters applied\n  res: ResponseView,\n  // other responses, null if error\n  responses: Array<ResponseView | null>\n): CustomResult\ninterface ReqResView {\n  url: string\n  headers: Record<string, string>\n  // body:\n  bytes: Uint8Array\n  text: string\n  json: any\n}\ninterface RequestView extends ReqResView {\n  method: string\n}\ninterface ResponseView extends ReqResView {\n  cookies: string[]\n  ok: boolean\n  redirected: boolean\n  status: number\n  statusText: string\n}\ntype CustomResult =\n  | Request                     // replace original request and refetch response\n  | Response                    // replace original response\n  | undefined                   // return original response\n  | ReadableStream | Uint8Array // replace response body with value\n  | unknown                     // replace response body with coerced value?.toString()\n  | null                        // remove response body`
+			`declare function custom(\n  // request with parameters applied\n  req: RequestView,\n  // first or fastest response with parameters applied\n  res: ResponseView,\n  // other responses, null if error\n  responses: Array<ResponseView | null>\n): CustomResult\ninterface ReqResView {\n  url: string\n  headers: Record<string, string>\n  // body:\n  bytes: Uint8Array\n  text: string\n  json: any\n}\ninterface RequestView extends ReqResView {\n  method: string\n}\ninterface ResponseView extends ReqResView {\n  cookies: string[]\n  ok: boolean\n  redirected: boolean\n  status: number\n  statusText: string\n}\ntype CustomResult =\n  | Request                     // replace original request and refetch response\n  | Response                    // replace original response\n  | undefined                   // return original response\n  | ReadableStream | Uint8Array // replace response body with value\n  | unknown                     // replace response body with coerced value?.toString()\n  | null                        // remove response body` +
+			`\n\nExtra. Notes\n` +
+			`* Escape complex parameters (${SearchParam.URL}, ${SearchParam.BODY}, "${SearchParam.RES_BODY}=${ResBodyParam.JAVASCRIPT}…") using tools like https://www.postman.com/ or https://apirequest.top/\n` +
+			`* Additional ${SearchParam.URL} along with ${SearchParam.SKIP_DEFAULTS} can be used to debug requests using services like https://webhook.site/\n` +
+			`* You can edit JSON objects and arrays in visual editors (https://dataformatterpro.com/json-editor/) and should minify it (https://jsonlint.com/json-minify)\n` +
+			`* Both ${SearchParam.URL} count and recursion level are limited for performance and security reasons\n` +
+			`* HTTP reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference\n` +
+			`* Default response header changes allow bypassing CORS restrictions on request origin and response headers\n` +
+			`* ${SearchParam.RES_BODY} custom handlers support ES2024+: https://compat-table.github.io/compat-table/es2016plus/#node24_0\n` +
+			'* Common mobile network speed, kbit/s:\n' +
+			`  | Type | Download | Upload |\n  | 3G   |      384 |    256 |\n  | H    |    7 000 |  2 000 |\n  | H+   |   12 000 |  5 000 |\n  | 4G   |   50 000 | 15 000 |\n  | 4G+  |  100 000 | 40 000 |`
 	return html ? fileText(Filename.TEMPLATE_HELP)
 		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
@@ -515,13 +528,14 @@ function parseParams(searchParams: URLSearchParams) {
 			[SearchParam.TIMEOUT]: timeoutParam,
 			...params
 		} = Object.fromEntries(searchParams),
-		[status, retry, retryIn, retryFactor, retryLimit, throttle] = [
+		[status, retry, retryIn, retryFactor, retryLimit, throttle, throttleUp] = [
 			SearchParam.STATUS,
 			SearchParam.RETRY,
 			SearchParam.RETRY_IN,
 			SearchParam.RETRY_FACTOR,
 			SearchParam.RETRY_LIMIT,
 			SearchParam.THROTTLE,
+			SearchParam.THROTTLE_UP,
 		].map(key => {
 			const param = params[key]
 			return (param?.match(/^\d+$/) && Number.isSafeInteger(+param) && +param > 0)
@@ -529,7 +543,7 @@ function parseParams(searchParams: URLSearchParams) {
 		}),
 		doRunCustom = resbody?.startsWith(ResBodyParam.JAVASCRIPT),
 		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
-	return {params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, doRunCustom, timeout}
+	return {params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, throttleUp, doRunCustom, timeout}
 }
 
 function parseRecursionHeader(headers: Headers, fallback = 0) {
@@ -895,7 +909,7 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 	checkAbortSignal(req.signal)
 	const
 		searchParams = new URL(req.url).searchParams,
-		{params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, doRunCustom, timeout} =
+		{params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, throttleUp, doRunCustom, timeout} =
 			parseParams(searchParams),
 		consolePrefix = `[${consoleCounter || '*'}:${depth || '*'}:${attempt || '*'}] `
 	let recursion = parseRecursionHeader(req.headers)
@@ -915,7 +929,7 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 					? undefined : streamify(params[SearchParam.BODY]))
 					?? throttleBody(
 						(retry > attempt ? req.clone() : req).body,
-						throttle
+						throttleUp || throttle
 					),
 				headers: delSetHeaders(req.headers, searchParams),
 				signal: AbortSignal.any([

@@ -18,6 +18,7 @@ http://localhost:3000/api/proxy?url=<url,multi>
   [&retrylimit=<milliseconds=Infinity>]
   [&timeout=<milliseconds=300000>]
   [&throttle=<kbps=Infinity>]
+  [&throttleup=<kbps=Infinity>]
 ```
 
 ## URL Parameters
@@ -44,8 +45,8 @@ http://localhost:3000/api/proxy?url=<url,multi>
   {"Access-Control-Allow-Origin": "*"}
   ```
 - `delresheaders` - names of response headers to delete (`*` is a wildcard)
-- `skipdefaults` - do not apply default header changes, except [safety behavior](#headers-safety-behavior) and setting `X-Proxy-Recursion` (max. `16`)
-- `method` - HTTP method override
+- `skipdefaults` - do not apply default header changes, except [response safety behavior](#response-headers-safety) and setting response `X-Proxy-Recursion` (max. `16`)
+- `method` - request method override
 - `body` - request body text
 - `resbody` - response transformation:
   - `null` - remove response body
@@ -57,12 +58,13 @@ http://localhost:3000/api/proxy?url=<url,multi>
 - `retry` - retries after first request
 - `retryin` - milliseconds between retries, supports exponential backoff:\
   *min*(*in* * *factor*<sup>*attempt*</sup>, *limit*)
-- `retryfactor` - backoff multiplier per retry
+- `retryfactor` - backoff multiplier per retry (industry standard is `2`)
 - `retrylimit` - backoff maximum milliseconds
 - `timeout` - milliseconds to abort request after
-- `throttle` - bandwidth limit in kbit/s
+- `throttle` - bidirectional bandwidth limit in kbit/s
+- `throttleup` - upload bandwidth limit in kbit/s
 
-### Headers Safety Behavior
+## Response Headers Safety
 ```typescript
 // https://github.com/nodejs/undici/issues/2514
 if (headers.get('Content-Encoding')) {
@@ -80,13 +82,13 @@ if (contentEncoding !== 'identity') {
 if (['null', 'atob', 'btoa'].includes(params.get('resbody')?.toLowerCase()))
   headers.delete('Content-Length')
 ```
-#### After running `resbody` [custom handler](#typescript-declaration-of-resbodyjavascript)
+### After running `resbody` [custom handler](#typescript-declaration-of-resbodyjavascript)
 ```typescript
 if (!result instanceof Request && !result instanceof Response && result !== undefined)
   headers.delete('Content-Length')
 ```
 
-### TypeScript Declaration of `resbody=javascript:…`
+## TypeScript Declaration of `resbody=javascript:…`
 ```typescript
 declare function custom(
   // request with parameters applied
@@ -126,3 +128,21 @@ type CustomResult =
   | unknown                     // replace response body with coerced value?.toString()
   | null                        // remove response body
 ```
+
+## Extra
+### Notes
+- [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`) using tools like [Postman](https://www.postman.com/) or [APIRequest](https://apirequest.top/)
+- Additional `url` along with `skipdefaults` can be used to debug requests using services like [Webhook.site](https://webhook.site/)
+- You can edit JSON objects and arrays in [visual editors](https://dataformatterpro.com/json-editor/) and should [minify](https://jsonlint.com/json-minify) it
+- Both `url` count and *recursion* level are limited for performance and security reasons
+- HTTP reference: [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers), [request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods), [response status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)
+- Default response header changes allow *bypassing CORS* restrictions on [request origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin) and [response headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers)
+- `resbody` custom handlers support [ES2024+](https://compat-table.github.io/compat-table/es2016plus/#node24_0)
+- Common mobile network speed, kbit/s:
+  | Type | Download | Upload |
+  |:----:|---------:|-------:|
+  | 3G   |      384 |    256 |
+  | H    |    7 000 |  2 000 |
+  | H+   |   12 000 |  5 000 |
+  | 4G   |   50 000 | 15 000 |
+  | 4G+  |  100 000 | 40 000 |
