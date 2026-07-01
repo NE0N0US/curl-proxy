@@ -1,6 +1,8 @@
 // #region - env
 
-const PROXY_RECURSION_MAX = +(process.env.PROXY_RECURSION_MAX || 64)
+const URL_COUNT_MAX = +(process.env.URL_COUNT_MAX || 16)
+
+const PROXY_RECURSION_MAX = +(process.env.PROXY_RECURSION_MAX || 16)
 
 // https://vercel.com/docs/functions/configuring-functions/duration#duration-limits
 const GLOBAL_TIMEOUT = +(process.env.GLOBAL_TIMEOUT || 300_000)
@@ -66,9 +68,41 @@ enum Header {
 	CONNECTION = 'Connection',
 	HOST = 'Host',
 	SET_COOKIE = 'set-cookie',
-	X_RESPONSES = 'x-responses',
+	X_PROXY_RESPONSES = 'x-proxy-responses',
 	X_PROXY_RECURSION = 'x-proxy-recursion',
+	AC_EXPOSE_HEADERS = 'access-control-expose-headers',
 }
+
+const HEADER_NAME_EXCEPTION: Readonly<StringRecord> = Object.freeze({
+	'www-authenticate': 'WWW-Authenticate',
+	'etag': 'ETag',
+	'expect-ct': 'Expect-CT',
+	'x-xss-protection': 'X-XSS-Protection',
+	'te': 'TE',
+	'accept-ch': 'Accept-CH',
+	'critical-ch': 'Critical-CH',
+	'dpr': 'DPR',
+	'ect': 'ECT',
+	'rtt': 'RTT',
+	'dictionary-id': 'Dictionary-ID',
+	'dnt': 'DNT',
+	'sec-gpc': 'Sec-GPC',
+	'nel': 'NEL',
+	'x-dns-prefetch-control': 'X-DNS-Prefetch-Control',
+	'sec-ch-ua': 'Sec-CH-UA',
+	'sec-ch-ua-wow64': 'Sec-CH-UA-WoW64',
+	'sec-ch-dpr': 'Sec-CH-DPR',
+})
+
+const AC_EXPOSE_HEADERS_SAFELIST = Object.freeze([
+	'cache-control',
+	'content-language',
+	'content-length',
+	'content-type',
+	'expires',
+	'last-modified',
+	'pragma',
+])
 
 const TRANSFER_ENCODING_CHUNKED = 'chunked'
 
@@ -160,8 +194,14 @@ const PROTOCOL_DEFAULT = 'http'
 // #region - help
 
 function formatHttpHeader(name: string) {
-	return name.toLowerCase()
+	const
+		lower = name.toLowerCase(),
+		exception = HEADER_NAME_EXCEPTION[lower]
+	return exception ? exception : lower
 		.replace(/(?<=^|-)\w/g, char => char.toUpperCase())
+		.replace(/^(Sec-Websocket-)(.+)/, (...args) => 'Sec-WebSocket-' + args[2])
+		.replace(/^(Sec-Ch-Ua-)(.+)/, (...args) => 'Sec-CH-UA-' + args[2])
+		.replace(/^(Sec-Ch-)(.+)/, (...args) => 'Sec-CH-' + args[2])
 }
 
 function formatStringArray(array: readonly string[]) {
@@ -209,20 +249,32 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 				SearchParam.URL.padEnd(width)
 			} - resource URL, default ${
 				PROTOCOL_DEFAULT
-			}, repeatable, first response used, others in ${
-				formatHttpHeader(Header.X_RESPONSES)
+			}, repeatable (max. ${URL_COUNT_MAX}), first response used, others in ${
+				formatHttpHeader(Header.X_PROXY_RESPONSES)
 			}\n` +
 			`* ${SearchParam.FASTEST.padEnd(width)} - return first completed response, abort others\n` +
 			// headers
-			`* ${SearchParam.HEADERS.padEnd(width)} - request headers to overwrite (Host is determined dynamically)` +
+			`* ${
+				SearchParam.HEADERS.padEnd(width)
+			} - request headers to overwrite (${
+				formatHttpHeader(Header.HOST)
+			} is determined dynamically)` +
 			(isRecord(SearchDefaults.HEADERS) ? ', in addition to:\n' : '\n') +
 			(isRecord(SearchDefaults.HEADERS) ? `  ${formatStringRecord(SearchDefaults.HEADERS)}\n` : '') +
 			// delheaders
-			`* ${SearchParam.DEL_HEADERS.padEnd(width)} - names of request headers to delete (Connection is deleted along with headers listed in it, * is a wildcard)` +
+			`* ${
+				SearchParam.DEL_HEADERS.padEnd(width)
+			} - names of request headers to delete (${
+				formatHttpHeader(Header.CONNECTION)
+			} is deleted along with headers listed in it, * is a wildcard)` +
 			(isArray(SearchDefaults.DEL_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isArray(SearchDefaults.DEL_HEADERS) ? `  ${formatStringArray(SearchDefaults.DEL_HEADERS)}\n` : '') +
 			// resheaders
-			`* ${SearchParam.RES_HEADERS.padEnd(width)} - response headers to overwrite` +
+			`* ${
+				SearchParam.RES_HEADERS.padEnd(width)
+			} - response headers to overwrite (${
+				formatHttpHeader(Header.AC_EXPOSE_HEADERS)
+			} is set automatically)` +
 			(isRecord(SearchDefaults.RES_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isRecord(SearchDefaults.RES_HEADERS) ? `  ${formatStringRecord(SearchDefaults.RES_HEADERS)}\n` : '') +
 			// delresheaders
@@ -234,7 +286,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 				SearchParam.SKIP_DEFAULTS.padEnd(width)
 			} - do not apply default header changes, except safety behavior and setting ${
 				formatHttpHeader(Header.X_PROXY_RECURSION)
-			} (maximum ${PROXY_RECURSION_MAX})\n`) +
+			} (max. ${PROXY_RECURSION_MAX})\n`) +
 			`* ${SearchParam.METHOD.padEnd(width)} - HTTP method override\n` +
 			`* ${SearchParam.BODY.padEnd(width)} - request body text\n` +
 			// resbody
@@ -488,10 +540,11 @@ function parseRecursionHeader(headers: Headers, fallback = 0) {
 
 /** `Connection` is deleted along with headers listed in it */
 function delSetHeaders(headers: Headers, params: URLSearchParams) {
-	const connection = headers.get(Header.CONNECTION)
+	const
+		skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null,
+		connection = headers.get(Header.CONNECTION)
 	;[
-		...params.get(SearchParam.SKIP_DEFAULTS) !== null
-			? [] : SearchDefaults.DEL_HEADERS ?? [],
+		...skipDefaults ? [] : SearchDefaults.DEL_HEADERS ?? [],
 		...tryParse<string[]>(params.get(SearchParam.DEL_HEADERS), isArray) ?? [],
 	]
 		?.forEach(name => deleteHeadersWildcard(headers, name))
@@ -499,8 +552,7 @@ function delSetHeaders(headers: Headers, params: URLSearchParams) {
 		connection.split(',').map(name => name.trim())
 			.forEach(name => deleteHeadersWildcard(headers, name))
 	Object.entries({
-		...params.get(SearchParam.SKIP_DEFAULTS) !== null
-			? {} : SearchDefaults.HEADERS,
+		...skipDefaults ? {} : SearchDefaults.HEADERS,
 		...tryParse<StringRecord>(params.get(SearchParam.HEADERS), isRecord)
 	})
 		.forEach(([name, value]) => headers.set(name, value as string))
@@ -509,36 +561,48 @@ function delSetHeaders(headers: Headers, params: URLSearchParams) {
 
 /** body is chunked and length is unknown */
 function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string) {
-	// fix headers: https://github.com/nodejs/undici/issues/2514
+	const skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null
+	// safety behavior
 	if (headers.get(Header.CONTENT_ENCODING)) {
 		headers.delete(Header.CONTENT_ENCODING)
 		headers.delete(Header.CONTENT_LENGTH)
 	}
-	// recompress
 	if (contentEncoding !== AcceptEncodingHeader.IDENTITY) {
 		headers.set(Header.CONTENT_ENCODING, contentEncoding)
 		headers.delete(Header.CONTENT_LENGTH)
 		headers.set(Header.TRANSFER_ENCODING, TRANSFER_ENCODING_CHUNKED)
 	}
-	// resbody param
 	if ([ResBodyParam.NULL, ResBodyParam.ATOB, ResBodyParam.BTOA]
 		.includes(params.get(SearchParam.RES_BODY)?.toLowerCase() as ResBodyParam)
 	)
 		headers.delete(Header.CONTENT_LENGTH)
 	// delete headers
+	if (!skipDefaults)
+		headers.set(Header.AC_EXPOSE_HEADERS, '')
 	;[
-		...params.get(SearchParam.SKIP_DEFAULTS) !== null ? []
-			: SearchDefaults.DEL_RES_HEADERS ?? [],
+		...skipDefaults ? [] : SearchDefaults.DEL_RES_HEADERS ?? [],
 		...tryParse<string[]>(params.get(SearchParam.DEL_RES_HEADERS), isArray) ?? [],
 	]
 		?.forEach(name => deleteHeadersWildcard(headers, name))
+	const acExposeHeadersDeleted = !headers.has(Header.AC_EXPOSE_HEADERS)
+	if (!skipDefaults)
+		headers.delete(Header.AC_EXPOSE_HEADERS)
 	// overwrite headers
 	Object.entries({
-		...params.get(SearchParam.SKIP_DEFAULTS) !== null
-			? {} : SearchDefaults.RES_HEADERS,
+		...skipDefaults ? {} : SearchDefaults.RES_HEADERS,
 		...tryParse<StringRecord>(params.get(SearchParam.RES_HEADERS), isRecord)
 	})
 		.forEach(([name, value]) => headers.set(name, value as string))
+	// expose headers
+	if (!skipDefaults && !acExposeHeadersDeleted && !headers.has(Header.AC_EXPOSE_HEADERS))
+		headers.set(
+			Header.AC_EXPOSE_HEADERS,
+			[Header.AC_EXPOSE_HEADERS, ...headers.keys()]
+				.filter(key => !AC_EXPOSE_HEADERS_SAFELIST.includes(key.toLowerCase()))
+				.sort()
+				.map(formatHttpHeader)
+				.join(', ')
+		)
 	return headers
 }
 
@@ -546,6 +610,7 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 	// send requests
 	const
 		urls = params.getAll(SearchParam.URL)
+			.slice(0, URL_COUNT_MAX)
 			.map(url => defaultProtocol(url)),
 		requestAborters = urls.map(() => new AbortController()),
 		responsePromises = urls.map((url, index) => {
@@ -665,7 +730,12 @@ async function processCustom(
 	if (result instanceof Request)
 		state.request = result
 	if (result instanceof Response)
-		Object.assign(state, result)
+		Object.assign(state, {
+			body: result.body,
+			headers: new Headers(result.headers),
+			status: result.status,
+			statusText: result.statusText,
+		})
 	else if (result instanceof ReadableStream || result === null) {
 		state.body = result
 		deleteContentLength = true
@@ -746,7 +816,10 @@ function throttleBody(body: Body, kbps: number, options: Partial<{
 			reason: undefined as any,
 		}
 	options.signal?.addEventListener('abort', () =>
-		Object.assign(state, options.signal),
+		Object.assign(state, {
+			aborted: options.signal!.aborted,
+			reason: options.signal!.reason,
+		}),
 	{once: true})
 	return new ReadableStream<Bytes>({
 		cancel(reason) {
@@ -873,7 +946,7 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 			)
 		// modify response
 		if (responses.length)
-			resHeaders.set(Header.X_RESPONSES, JSON.stringify(
+			resHeaders.set(Header.X_PROXY_RESPONSES, JSON.stringify(
 				responses.map(result =>
 					result.status === 'fulfilled' ? result.value.status : null
 				)
@@ -891,11 +964,8 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 				status: status || res.status,
 				statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
 			}, doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined)
-		if (request)
-			request.headers.set(Header.X_PROXY_RECURSION, (recursion + 1)?.toString())
-		// processCustom can return headers from new Response
-		newResInit.headers = new Headers(newResInit.headers)
-		newResInit.headers.set(Header.X_PROXY_RECURSION, (recursion + 1)?.toString())
+		;(request ? request.headers : newResInit.headers as Headers)
+			.set(Header.X_PROXY_RECURSION, (recursion + 1)?.toString())
 		// pipe response
 		return request ? await proxy(request, consoleCounter, depth + 1, 0) : new Response(
 			trackBody(

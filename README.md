@@ -21,7 +21,7 @@ http://localhost:3000/api/proxy?url=<url,multi>
 ```
 
 ## URL Parameters
-- `url` - resource URL, default `http`, *repeatable*, first response used, others in `X-Responses`
+- `url` - resource URL, default `http`, *repeatable* (max. `16`), first response used, others in `X-Proxy-Responses`
 - `fastest` - return first completed response, abort others
 - `headers` - request headers to overwrite (`Host` is determined dynamically)
 - `delheaders` - names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
@@ -39,12 +39,12 @@ http://localhost:3000/api/proxy?url=<url,multi>
     "Access-Control-Allow-Credentials"
   ]
   ```
-- `resheaders` - response headers to overwrite, in addition to:
+- `resheaders` - response headers to overwrite (`Access-Control-Expose-Headers` is set automatically), in addition to:
   ```json
   {"Access-Control-Allow-Origin": "*"}
   ```
 - `delresheaders` - names of response headers to delete (`*` is a wildcard)
-- `skipdefaults` - do not apply default header changes, except [safety behavior](#headers-safety-behavior) and setting `X-Proxy-Recursion` (maximum `64`)
+- `skipdefaults` - do not apply default header changes, except [safety behavior](#headers-safety-behavior) and setting `X-Proxy-Recursion` (max. `16`)
 - `method` - HTTP method override
 - `body` - request body text
 - `resbody` - response transformation:
