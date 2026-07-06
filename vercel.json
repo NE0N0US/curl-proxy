@@ -3,7 +3,12 @@
 	"functions": {
 		"api/*": {
 			"supportsCancellation": true,
-			"includeFiles": "**/*.{html,md}"
+			"includeFiles": "**/*.{html,md}",
+			"maxDuration": "max"
 		}
-	}
+	},
+	"rewrites": [{
+		"source": "/",
+		"destination": "/api/proxy"
+	}]
 }

@@ -155,19 +155,21 @@ enum SearchParam {
 const SearchDefaults = Object.freeze({
 	DEL_HEADERS: Object.freeze([
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
-		'Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Proxy-Authorization',
-		'Trailer', 'Transfer-Encoding', 'TE', 'Upgrade',
+		'Connection', 'Keep-Alive', 'Proxy-Authorization', 'Trailer', 'Transfer-Encoding', 'TE', 'Upgrade',
 		// https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/304
 		'Cache-Control', 'Pragma', 'If-Modified-Since', 'If-None-Match',
 		// real addresses
 		'Origin', 'Referer', 'Via', 'Forwarded', 'X-Forwarded-*', '*-IP',
 		// browser data
 		'Sec-CH-*', 'Sec-Fetch-*',
+	]),
+	HEADERS: Object.freeze({}),
+	DEL_RES_HEADERS: Object.freeze([
+		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
+		'Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Trailer', 'Transfer-Encoding', 'Upgrade',
 		// for Access-Control-Allow-Origin
 		'Access-Control-Allow-Credentials',
 	]),
-	HEADERS: Object.freeze({}),
-	DEL_RES_HEADERS: Object.freeze([]),
 	RES_HEADERS: Object.freeze({
 		'Access-Control-Allow-Origin': '*',
 	}),
@@ -180,7 +182,7 @@ enum ResBodyParam {
 	JAVASCRIPT = 'javascript:',
 }
 
-const SERVICE_URL_DEFAULT = 'http://localhost:3000/api/proxy'
+const SERVICE_URL_DEFAULT = 'http://localhost:3000/'
 
 const GITHUB_API_MD = 'https://api.github.com/markdown'
 
@@ -220,7 +222,7 @@ function escapeHtml(text: string) {
 
 function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = false) {
 	const
-		url = new URL(defaultProtocol(serviceUrl)),
+		url = new URL(resolveUrl(serviceUrl, serviceUrl)),
 		width = Math.max(...Object.values(SearchParam).map(({length}) => length)),
 		widthRbp = Math.max(...Object.values(ResBodyParam).map(({length}) => length)),
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
@@ -280,7 +282,9 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			(isRecord(SearchDefaults.RES_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isRecord(SearchDefaults.RES_HEADERS) ? `  ${formatStringRecord(SearchDefaults.RES_HEADERS)}\n` : '') +
 			// delresheaders
-			`* ${SearchParam.DEL_RES_HEADERS.padEnd(width)} - names of response headers to delete (* is a wildcard)` +
+			`* ${SearchParam.DEL_RES_HEADERS.padEnd(width)} - names of response headers to delete (${
+				formatHttpHeader(Header.CONNECTION)
+			} is deleted along with headers listed in it, * is a wildcard)` +
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? ', in addition to:\n' : '\n') +
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? `  ${formatStringArray(SearchDefaults.DEL_RES_HEADERS)}\n` : '') +
 			// other params
@@ -317,7 +321,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n\nTypeScript Declaration of "resbody=javascript:*"\n` +
 			`declare function custom(\n  // request with parameters applied\n  req: RequestView,\n  // first or fastest response with parameters applied\n  res: ResponseView,\n  // other responses, null if error\n  responses: Array<ResponseView | null>\n): CustomResult\ninterface ReqResView {\n  url: string\n  headers: Record<string, string>\n  // body:\n  bytes: Uint8Array\n  text: string\n  json: any\n}\ninterface RequestView extends ReqResView {\n  method: string\n}\ninterface ResponseView extends ReqResView {\n  cookies: string[]\n  ok: boolean\n  redirected: boolean\n  status: number\n  statusText: string\n}\ntype CustomResult =\n  | Request                     // replace original request and refetch response\n  | Response                    // replace original response\n  | undefined                   // return original response\n  | ReadableStream | Uint8Array // replace response body with value\n  | unknown                     // replace response body with coerced value?.toString()\n  | null                        // remove response body` +
 			`\n\nExtra. Notes\n` +
-			`* Escape complex parameters (${SearchParam.URL}, ${SearchParam.BODY}, "${SearchParam.RES_BODY}=${ResBodyParam.JAVASCRIPT}…") using tools like https://www.postman.com/ or https://apirequest.top/\n` +
+			`* Escape complex parameters (${SearchParam.URL}, ${SearchParam.BODY}, "${SearchParam.RES_BODY}=${ResBodyParam.JAVASCRIPT}…") using tools like https://www.postman.com/\n` +
 			`* Additional ${SearchParam.URL} along with ${SearchParam.SKIP_DEFAULTS} can be used to debug requests using services like https://webhook.site/\n` +
 			`* You can edit JSON objects and arrays in visual editors (https://dataformatterpro.com/json-editor/) and should minify it (https://jsonlint.com/json-minify)\n` +
 			`* Both ${SearchParam.URL} count and recursion level are limited for performance and security reasons\n` +
@@ -359,7 +363,10 @@ async function helpResponse(req: Request, status = HttpStatus.OK, message?: stri
 			: formatHelp(message, req.url, acceptHtml)
 	return new Response(result, {
 		status,
-		headers: acceptHtml ? {[Header.CONTENT_TYPE]: AcceptHeader.HTML} : undefined,
+		headers: {
+			...acceptHtml ? {[Header.CONTENT_TYPE]: AcceptHeader.HTML} : {},
+			...SearchDefaults.RES_HEADERS,
+		},
 	})
 }
 
@@ -513,8 +520,14 @@ function resolveAcceptHeader(
 	return items.find(({weight}) => weight === maxWeight)?.value ?? fallback
 }
 
-function defaultProtocol(url: string, protocol = PROTOCOL_DEFAULT) {
-	return url.match(/^\w+:\/\//) ? url : (protocol + '://' + url)
+function resolveUrl(url: string, base: string, protocol = PROTOCOL_DEFAULT) {
+	const isRelative = url.startsWith('/') ||
+		url.startsWith('./') ||
+		url.startsWith('../') ||
+		url.startsWith('?') ||
+		url.startsWith('#')
+	return isRelative ? new URL(url, base).href :
+		url.match(/^\w+:\/\//) ? url : (protocol + '://' + url)
 }
 
 // #endregion
@@ -575,16 +588,18 @@ function delSetHeaders(headers: Headers, params: URLSearchParams) {
 
 /** body is chunked and length is unknown */
 function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string) {
-	const skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null
+	const
+		skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null,
+		connection = headers.get(Header.CONNECTION)
+	let setContentEncoding = false
 	// safety behavior
 	if (headers.get(Header.CONTENT_ENCODING)) {
 		headers.delete(Header.CONTENT_ENCODING)
 		headers.delete(Header.CONTENT_LENGTH)
 	}
 	if (contentEncoding !== AcceptEncodingHeader.IDENTITY) {
-		headers.set(Header.CONTENT_ENCODING, contentEncoding)
+		setContentEncoding = true
 		headers.delete(Header.CONTENT_LENGTH)
-		headers.set(Header.TRANSFER_ENCODING, TRANSFER_ENCODING_CHUNKED)
 	}
 	if ([ResBodyParam.NULL, ResBodyParam.ATOB, ResBodyParam.BTOA]
 		.includes(params.get(SearchParam.RES_BODY)?.toLowerCase() as ResBodyParam)
@@ -598,6 +613,13 @@ function processResHeaders(headers: Headers, params: URLSearchParams, contentEnc
 		...tryParse<string[]>(params.get(SearchParam.DEL_RES_HEADERS), isArray) ?? [],
 	]
 		?.forEach(name => deleteHeadersWildcard(headers, name))
+	if (connection && !headers.get(Header.CONNECTION))
+		connection.split(',').map(name => name.trim())
+			.forEach(name => deleteHeadersWildcard(headers, name))
+	if (setContentEncoding) {
+		headers.set(Header.CONTENT_ENCODING, contentEncoding)
+		headers.set(Header.TRANSFER_ENCODING, TRANSFER_ENCODING_CHUNKED)
+	}
 	const acExposeHeadersDeleted = !headers.has(Header.AC_EXPOSE_HEADERS)
 	if (!skipDefaults)
 		headers.delete(Header.AC_EXPOSE_HEADERS)
@@ -625,7 +647,7 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 	const
 		urls = params.getAll(SearchParam.URL)
 			.slice(0, URL_COUNT_MAX)
-			.map(url => defaultProtocol(url)),
+			.map(url => resolveUrl(url, request.url)),
 		requestAborters = urls.map(() => new AbortController()),
 		responsePromises = urls.map((url, index) => {
 			const headers = request.headers
@@ -666,6 +688,7 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 	return {res, responses}
 }
 
+/** vulnerable to [a list of attacks](https://eslam.io/posts/unsecure-node-vm/#the-risk) including [prototype pollution](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/Prototype_pollution) */
 async function runCustom(
 	req: Request, res: Response, responses: Array<Response | null>, code: string, timeout = 10_000
 ): Promise<Request | Response | Body | Bytes | unknown> {
@@ -722,8 +745,25 @@ async function runCustom(
 			responses: responsesViews,
 			Request,
 			Response,
+			URL,
+			URLSearchParams,
+			Headers,
+			FormData,
+			Blob,
+			structuredClone,
+			TextEncoder,
+			TextDecoder,
+			ReadableStream,
+			WritableStream,
+			TransformStream,
+			Uint8Array,
+			Crypto,
 		}
-	return vm.runInNewContext(code, input, {timeout, breakOnSigint: true})
+	return vm.runInNewContext(code, input, {
+		timeout,
+		breakOnSigint: true,
+		contextCodeGeneration: {strings: false, wasm: false},
+	})
 }
 
 async function processCustom(
@@ -1015,7 +1055,8 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 let c = 0
 
 export default {
-	fetch: async (req: Request) => {
+	/** https://vercel.com/docs/fluid-compute#optimized-concurrency */
+	fetch: (req: Request) => (async () => {
 		const n = c++, consolePrefix = `[${n || '*'}:*:*] `
 		req.signal?.addEventListener('abort', () =>
 			console.debug(consolePrefix + 'abort'),
@@ -1029,7 +1070,7 @@ export default {
 		return await proxy(req, n).finally(() =>
 			console.timeEnd(consolePrefix + 'proxy')
 		)
-	}
+	})()
 }
 
 // #endregion

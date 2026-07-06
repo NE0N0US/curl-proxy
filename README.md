@@ -1,6 +1,6 @@
 # Usage
 ```url
-http://localhost:3000/api/proxy?url=<url,multi>
+http://localhost:3000/?url=<url,multi>
   [&fastest]
   [&headers=<json_object>]
   [&delheaders=<json_array>]
@@ -29,22 +29,28 @@ http://localhost:3000/api/proxy?url=<url,multi>
   ```jsonc
   [
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
-    "Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization", "Trailer", "Transfer-Encoding", "TE", "Upgrade",
+    "Connection", "Keep-Alive", "Proxy-Authorization", "Trailer", "Transfer-Encoding", "TE", "Upgrade",
     // https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/304
     "Cache-Control", "Pragma", "If-Modified-Since", "If-None-Match",
     // real addresses
     "Origin", "Referer", "Via", "Forwarded", "X-Forwarded-*", "*-IP",
     // browser data
     "Sec-CH-*", "Sec-Fetch-*",
-    // for Access-Control-Allow-Origin
-    "Access-Control-Allow-Credentials"
   ]
   ```
 - `resheaders` - response headers to overwrite (`Access-Control-Expose-Headers` is set automatically), in addition to:
   ```json
   {"Access-Control-Allow-Origin": "*"}
   ```
-- `delresheaders` - names of response headers to delete (`*` is a wildcard)
+- `delresheaders` - names of response headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
+  ```jsonc
+  [
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
+    "Connection", "Keep-Alive", "Proxy-Authenticate", "Trailer", "Transfer-Encoding", "Upgrade",
+    // for Access-Control-Allow-Origin
+    "Access-Control-Allow-Credentials",
+  ]
+   ```
 - `skipdefaults` - do not apply default header changes, except [response safety behavior](#response-headers-safety) and setting response `X-Proxy-Recursion` (max. `16`)
 - `method` - request method override
 - `body` - request body text
@@ -131,7 +137,7 @@ type CustomResult =
 
 ## Extra
 ### Notes
-- [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`) using tools like [Postman](https://www.postman.com/) or [APIRequest](https://apirequest.top/)
+- [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`) using tools like [Postman](https://www.postman.com/)
 - Additional `url` along with `skipdefaults` can be used to debug requests using services like [Webhook.site](https://webhook.site/)
 - You can edit JSON objects and arrays in [visual editors](https://dataformatterpro.com/json-editor/) and should [minify](https://jsonlint.com/json-minify) it
 - Both `url` count and *recursion* level are limited for performance and security reasons
