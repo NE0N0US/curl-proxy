@@ -22,7 +22,7 @@ http://localhost:3000/?url=<url,multi>
 ```
 
 ## URL Parameters
-- `url` - resource URL, default `http`, *repeatable* (max. `16`), first response used, others in `X-Proxy-Responses`
+- `url` - resource URL, default `http`, *required*, *repeatable* (max. `16`), first response used, others in `X-Proxy-Responses`
 - `fastest` - return first completed response, abort others
 - `headers` - request headers to overwrite (`Host` is determined dynamically)
 - `delheaders` - names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
@@ -143,7 +143,21 @@ type CustomResult =
 - Both `url` count and *recursion* level are limited for performance and security reasons
 - HTTP reference: [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers), [request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods), [response status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)
 - Default response header changes allow *bypassing CORS* restrictions on [request origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin) and [response headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers)
-- `resbody` custom handlers support [ES2024+](https://compat-table.github.io/compat-table/es2016plus/#node24_0)
+- `resbody` custom handlers support [most of ES2025](https://test262.fyi/#|qjs), [crypto](https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto) object and following Web APIs:
+  - [URL](https://developer.mozilla.org/docs/Web/API/URL)
+  - [URLSearchParams](https://developer.mozilla.org/docs/Web/API/URLSearchParams)
+  - [FormData](https://developer.mozilla.org/docs/Web/API/FormData)
+  - [Headers](https://developer.mozilla.org/docs/Web/API/Headers)
+  - [Request](https://developer.mozilla.org/docs/Web/API/Request)
+  - [Response](https://developer.mozilla.org/docs/Web/API/Response)
+  - [Blob](https://developer.mozilla.org/docs/Web/API/Blob)
+  - [TextEncoder](https://developer.mozilla.org/docs/Web/API/TextEncoder)
+  - [TextDecoder](https://developer.mozilla.org/docs/Web/API/TextDecoder)
+  - [ReadableStream](https://developer.mozilla.org/docs/Web/API/ReadableStream)
+  - [WritableStream](https://developer.mozilla.org/docs/Web/API/WritableStream)
+  - [TransformStream](https://developer.mozilla.org/docs/Web/API/TransformStream)
+  - [DecompressionStream](https://developer.mozilla.org/docs/Web/API/DecompressionStream)
+  - [CompressionStream](https://developer.mozilla.org/docs/Web/API/CompressionStream)
 - Common mobile network speed, kbit/s:
   | Type | Download | Upload |
   |:----:|---------:|-------:|

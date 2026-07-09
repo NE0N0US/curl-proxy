@@ -16,7 +16,12 @@ import path from 'node:path'
 import zlib from 'node:zlib'
 import stream from 'node:stream'
 import vm from 'node:vm'
+import crypto from 'node:crypto'
 import undici from 'undici'
+
+import { newQuickJSWASMModuleFromVariant, shouldInterruptAfterDeadline } from 'quickjs-emscripten-core'
+import RELEASE_SYNC from '@jitl/quickjs-wasmfile-release-sync'
+import { Arena } from 'quickjs-emscripten-sync'
 
 undici.setGlobalDispatcher(new undici.Agent({
 	connect: {timeout: GLOBAL_TIMEOUT},
@@ -43,7 +48,10 @@ type StringRecord = Record<string, string>
 
 type Bytes = Uint8Array<ArrayBuffer>
 
+/** `Request` | `Response` */
 type Body = ReadableStream<Bytes> | null | undefined
+
+type Constructable<T = any> = new (...args: any[]) => T
 
 enum HttpMethod {
 	GET = 'GET',
@@ -192,6 +200,14 @@ const THROTTLE_TICK_DEFAULT = 50
 
 const PROTOCOL_DEFAULT = 'http'
 
+const NATIVE_INSTANCE = Symbol('native')
+
+const RUN_CUSTOM_MS = 10_000
+
+const RUN_CUSTOM_BYTES = 2 ** 20 * 2 ** 8
+
+const RUN_CUSTOM_UNSAFE = false
+
 // #endregion
 
 // #region - help
@@ -207,10 +223,12 @@ function formatHttpHeader(name: string) {
 		.replace(/^(Sec-Ch-)(.+)/, (...args) => 'Sec-CH-' + args[2])
 }
 
+/** `["a", "b"]` */
 function formatStringArray(array: readonly string[]) {
 	return `["${array.join('", "')}"]`
 }
 
+/** `{"a": "b", "c": "d"}` */
 function formatStringRecord(record: StringRecord) {
 	return JSON.stringify(record, undefined, ' ').replace(/(?:(?<={)\n )|\n/g, '')
 }
@@ -253,7 +271,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 				SearchParam.URL.padEnd(width)
 			} - resource URL, default ${
 				PROTOCOL_DEFAULT
-			}, repeatable (max. ${URL_COUNT_MAX}), first response used, others in ${
+			}, required, repeatable (max. ${URL_COUNT_MAX}), first response used, others in ${
 				formatHttpHeader(Header.X_PROXY_RESPONSES)
 			}\n` +
 			`* ${SearchParam.FASTEST.padEnd(width)} - return first completed response, abort others\n` +
@@ -327,7 +345,8 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`* Both ${SearchParam.URL} count and recursion level are limited for performance and security reasons\n` +
 			`* HTTP reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference\n` +
 			`* Default response header changes allow bypassing CORS restrictions on request origin and response headers\n` +
-			`* ${SearchParam.RES_BODY} custom handlers support ES2024+: https://compat-table.github.io/compat-table/es2016plus/#node24_0\n` +
+			`* ${SearchParam.RES_BODY} custom handlers support most of ES2025 (https://test262.fyi/#|qjs), crypto object and following Web APIs:\n` +
+			`  * URL\n  * URLSearchParams\n  * FormData\n  * Headers\n  * Request\n  * Response\n  * Blob\n  * TextEncoder\n  * TextDecoder\n  * ReadableStream\n  * WritableStream\n  * TransformStream\n  * DecompressionStream\n  * CompressionStream\n` +
 			'* Common mobile network speed, kbit/s:\n' +
 			`  | Type | Download | Upload |\n  | 3G   |      384 |    256 |\n  | H    |    7 000 |  2 000 |\n  | H+   |   12 000 |  5 000 |\n  | 4G   |   50 000 | 15 000 |\n  | 4G+  |  100 000 | 40 000 |`
 	return html ? fileText(Filename.TEMPLATE_HELP)
@@ -424,10 +443,12 @@ function tryParse<T = any>(json: string | null | undefined, isValid: Function, .
 	catch {}
 }
 
+/** https://lodash.com/docs/#escapeRegExp, except `"` */
 function escapeRegex(text: string) {
 	return text.replace(/[\^\$\.\*\+\?\(\)\[\]\{\}\|]/g, char => '\\' + char)
 }
 
+/** `*` is a wildcard */
 function deleteHeadersWildcard(headers: Headers, key: string) {
 	const regex = new RegExp('^' + key.replace(/./g, char =>
 		char === '*' ? '.*' : escapeRegex(char)
@@ -444,6 +465,9 @@ function getAbortError(message = 'Aborted') {
 	return new DOMException(message, 'AbortError')
 }
 
+/** @throws {any} if aborted
+ * @throws {DOMException} if aborted without `reason`
+ */
 function checkAbortSignal(signal?: AbortSignal, message?: string) {
 	if (signal?.aborted)
 		throw signal.reason ?? getAbortError(message)
@@ -503,6 +527,7 @@ function streamify(value: Bytes | string | null | undefined) {
 	})
 }
 
+/** allowed value with max [q-factor](https://developer.mozilla.org/en-US/docs/Glossary/Quality_values) or fallback */
 function resolveAcceptHeader(
 	value: string | null | undefined,
 	allow: readonly string[],
@@ -520,6 +545,7 @@ function resolveAcceptHeader(
 	return items.find(({weight}) => weight === maxWeight)?.value ?? fallback
 }
 
+/** relative (starting with `/`, `./`, `../`, `?`, `#`), whole absolute or absolute without protocol */
 function resolveUrl(url: string, base: string, protocol = PROTOCOL_DEFAULT) {
 	const isRelative = url.startsWith('/') ||
 		url.startsWith('./') ||
@@ -586,7 +612,7 @@ function delSetHeaders(headers: Headers, params: URLSearchParams) {
 	return headers
 }
 
-/** body is chunked and length is unknown */
+/** `Connection` is deleted along with headers listed in it, body is chunked and length is unknown */
 function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string) {
 	const
 		skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null,
@@ -642,6 +668,7 @@ function processResHeaders(headers: Headers, params: URLSearchParams, contentEnc
 	return headers
 }
 
+/** @throws {DOMException | TypeError} if `fetch()` [failed](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch#exceptions) for main request */
 async function fetchMulti(request: Request, params: URLSearchParams) {
 	// send requests
 	const
@@ -688,12 +715,92 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 	return {res, responses}
 }
 
-/** vulnerable to [a list of attacks](https://eslam.io/posts/unsecure-node-vm/#the-risk) including [prototype pollution](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/Prototype_pollution) */
+/** proxy getter and setter to target */
+function proxyProperty<T extends Object>(
+	getTarget: (instance: T) => any, name: string, prop: PropertyDescriptor,
+	configurable?: boolean, enumerable?: boolean
+) {
+	return {
+		get: 'value' in prop || prop.get ? function(this: T) {
+			const value = getTarget(this)[name]
+			return typeof value === 'function' ? function(this: T, ...args: any[]) {
+				return getTarget(this)[name](...args)
+			} : value
+		} : undefined,
+		set: prop.writable || prop.set ? function(this: T, value: any) {
+			getTarget(this)[name] = value
+		} : undefined,
+		configurable: configurable ?? prop.configurable,
+		enumerable: enumerable ?? prop.enumerable,
+	} as PropertyDescriptor
+}
+
+/** for QuickJS; except `prototype` and `constructor` */
+function wrapNativeClass<T extends Object>(NativeClass: Constructable<T>) {
+	class WrappedNative {
+		[NATIVE_INSTANCE]: T
+		constructor(...args: any[]) {
+			this[NATIVE_INSTANCE] = new NativeClass(...args)
+		}
+	}
+	Object.getOwnPropertyNames(NativeClass.prototype).forEach(name => {
+		if (name !== 'constructor')
+			Object.defineProperty(WrappedNative.prototype, name,
+				proxyProperty<WrappedNative>(
+					wrappedNative => wrappedNative[NATIVE_INSTANCE],
+					name,
+					Object.getOwnPropertyDescriptor(NativeClass.prototype, name)!
+				)
+			)
+	})
+	const factory = (...args: any[]) => new WrappedNative(...args)
+	;[WrappedNative, factory].forEach(target => {
+		Object.getOwnPropertyNames(NativeClass).forEach(name => {
+			if (name !== 'prototype')
+				Object.defineProperty(target, name, proxyProperty(
+					() => NativeClass,
+					name,
+					Object.getOwnPropertyDescriptor(NativeClass, name)!
+				))
+		})
+		Object.defineProperty(target, Symbol.hasInstance, {
+			value: (wrappedNative: WrappedNative) =>
+				wrappedNative[NATIVE_INSTANCE] instanceof NativeClass,
+			writable: false,
+			configurable: false,
+			enumerable: false,
+		})
+	})
+	return factory
+}
+
+/** [QuickJS](https://github.com/justjake/quickjs-emscripten) via [wrapper](https://github.com/reearth/quickjs-emscripten-sync)
+ * @throws {any}
+ */
 async function runCustom(
-	req: Request, res: Response, responses: Array<Response | null>, code: string, timeout = 10_000
+	req: Request, res: Response, responses: Array<Response | null>, code: string,
+	timeout = RUN_CUSTOM_MS, memoryLimitBytes = RUN_CUSTOM_BYTES, useNodeVm = RUN_CUSTOM_UNSAFE
 ): Promise<Request | Response | Body | Bytes | unknown> {
 	let reqText, reqJson
 	const
+		reqView = {
+			bytes: !req.body ? new Uint8Array() : await new Response(req.body).bytes(),
+			get text() {
+				return reqText ??= new TextDecoder().decode(reqView.bytes)
+			},
+			set text(text) {
+				reqText = text
+			},
+			get json() {
+				return reqJson ??= JSON.parse(reqView.text)
+			},
+			set json(json) {
+				reqJson = json
+			},
+			headers: Object.fromEntries(req.headers),
+			method: req.method,
+			url: req.url,
+		},
 		[resView, ...responsesViews] = await Promise.all([res, ...responses].map(async res => {
 			if (!res)
 				return res
@@ -722,53 +829,68 @@ async function runCustom(
 			}
 			return view
 		})),
-		input = {
-			req: {
-				bytes: !req.body ? new Uint8Array() : await new Response(req.body).bytes(),
-				get text() {
-					return reqText ??= new TextDecoder().decode(input.req.bytes)
-				},
-				set text(text) {
-					reqText = text
-				},
-				get json() {
-					return reqJson ??= JSON.parse(input.req.text)
-				},
-				set json(json) {
-					reqJson = json
-				},
-				headers: Object.fromEntries(req.headers),
-				method: req.method,
-				url: req.url,
-			},
+		expose = {
+			req: reqView,
 			res: resView!,
 			responses: responsesViews,
-			Request,
-			Response,
+			crypto,
+		},
+		exposeClasses = {
 			URL,
 			URLSearchParams,
-			Headers,
 			FormData,
+			Headers,
+			Request,
+			Response,
 			Blob,
-			structuredClone,
 			TextEncoder,
 			TextDecoder,
 			ReadableStream,
 			WritableStream,
 			TransformStream,
-			Uint8Array,
-			Crypto,
+			DecompressionStream,
+			CompressionStream,
 		}
-	return vm.runInNewContext(code, input, {
-		timeout,
-		breakOnSigint: true,
-		contextCodeGeneration: {strings: false, wasm: false},
+	if (useNodeVm)
+		return vm.runInNewContext(code, {
+			...expose,
+			...exposeClasses,
+		}, {
+			timeout,
+			breakOnSigint: true,
+			contextCodeGeneration: {strings: false, wasm: false},
+		})
+	const
+		QuickJS = (await newQuickJSWASMModuleFromVariant(RELEASE_SYNC)).newRuntime({
+			interruptHandler: shouldInterruptAfterDeadline(Date.now() + timeout),
+			memoryLimitBytes,
+		}),
+		ctx = QuickJS.newContext(),
+		arena = new Arena(ctx, {isMarshalable: true})
+	arena.expose({
+		...expose,
+		...Object.fromEntries(Object.entries(exposeClasses).map(([name, nativeClass]) =>
+			[name, wrapNativeClass(nativeClass as any)]
+		)),
 	})
+	try {
+		const result = arena.evalCode(code)
+		return result?.[NATIVE_INSTANCE] ?? result
+	}
+	finally {
+		new Promise(resolve => setTimeout(resolve))
+			.then(() => {
+				arena.dispose()
+				ctx.dispose()
+			})
+			.catch(() => {})
+	}
 }
 
+/** @throws {any} */
 async function processCustom(
 	req: Request, res: Response, responses: Array<Response | null>,
-	state: {request?: Request, body?: Body} & ResponseInit,
+	state: {request?: Request, body?: Body, headers: Headers, status: number, statusText: string},
 	code: string | undefined
 ) {
 	if (code === undefined)
@@ -807,6 +929,7 @@ async function processCustom(
 	return state
 }
 
+/** first and last chunks */
 function trackBody(body: Body, consolePrefix: string): Body {
 	let isFirst = true
 	return body?.pipeThrough(new TransformStream({
@@ -822,6 +945,7 @@ function trackBody(body: Body, consolePrefix: string): Body {
 	}))
 }
 
+/** compress */
 function encodeBody(body: Body, encoding: string, signal?: AbortSignal): Body {
 	if (!body)
 		return body
@@ -853,6 +977,7 @@ function encodeBody(body: Body, encoding: string, signal?: AbortSignal): Body {
 	) as any : body
 }
 
+/** limit bandwidth */
 function throttleBody(body: Body, kbps: number, options: Partial<{
 	signal: AbortSignal,
 	tick: number,
@@ -918,6 +1043,7 @@ function throttleBody(body: Body, kbps: number, options: Partial<{
 	})
 }
 
+/** apply `resbody` param */
 function transformBody(body: Body, transform: string | undefined, signal?: AbortSignal): Body {
 	if (!transform)
 		return body
@@ -945,6 +1071,7 @@ function transformBody(body: Body, transform: string | undefined, signal?: Abort
 	return body
 }
 
+/** facade */
 async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): Promise<Response> {
 	checkAbortSignal(req.signal)
 	const
@@ -958,7 +1085,7 @@ async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): 
 			`Proxy recursion limit of ${PROXY_RECURSION_MAX} exceeded`
 		)
 	if (!searchParams.get(SearchParam.URL))
-		return await helpResponse(req, HttpStatus.BAD_REQUEST, `Missing ${SearchParam.URL} parameter`)
+		return await helpResponse(req, HttpStatus.BAD_REQUEST)
 	try {
 		// modify request
 		const

@@ -1,14 +1,19 @@
 {
-	"name": "url-proxy",
-	"version": "2026-07-06",
+	"name": "curl-proxy",
+	"version": "2026-07-09",
 	"engines": {
 		"node": "^24.0.0"
 	},
 	"scripts": {
 		"start": "vercel dev"
 	},
+	"dependencies": {
+		"@jitl/quickjs-wasmfile-release-sync": "0.32.0",
+		"quickjs-emscripten-core": "0.32.0",
+		"quickjs-emscripten-sync": "1.10.0"
+	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",
-		"vercel": "^54.16.0"
+		"vercel": "^54.21.1"
 	}
 }
