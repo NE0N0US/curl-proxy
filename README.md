@@ -139,6 +139,7 @@ type CustomResult =
 ### Notes
 - [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`) using tools like [Postman](https://www.postman.com/)
 - Additional `url` along with `skipdefaults` can be used to debug requests using services like [Webhook.site](https://webhook.site/)
+- You can debug requests and get fake responses in [httpbin](https://httpbin.org/) and [JSONPlaceholder](https://jsonplaceholder.typicode.com/)
 - You can edit JSON objects and arrays in [visual editors](https://dataformatterpro.com/json-editor/) and should [minify](https://jsonlint.com/json-minify) it
 - Both `url` count and *recursion* level are limited for performance and security reasons
 - HTTP reference: [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers), [request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods), [response status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)
@@ -166,3 +167,4 @@ type CustomResult =
   | H+   |   12 000 |  5 000 |
   | 4G   |   50 000 | 15 000 |
   | 4G+  |  100 000 | 40 000 |
+- You can [ask DeepWiki](https://deepwiki.com/NE0N0US/curl-proxy) about this project
