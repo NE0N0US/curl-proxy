@@ -11,10 +11,11 @@ import {SearchDefaults} from './headers'
 enum Filename {
 	TEMPLATE_HELP = 'templates/help.html',
 	TEMPLATE_MD = 'templates/md.html',
+	TEMPLATE_MD_CACHED_HTML = 'templates/cache/md-cached.html',
 	README_MD = 'README.md',
 }
 
-const SERVICE_URL_DEFAULT = 'http://localhost:3000/'
+const SERVICE_URL_DEFAULT = 'http://localhost:2077/'
 
 const TEMPLATE_CONTENT = 'TEMPLATE_CONTENT'
 
@@ -28,6 +29,9 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 		width = Math.max(...Object.values(SearchParam).map(({length}) => length)),
 		widthRbp = Math.max(...Object.values(ResBodyParam).map(({length}) => length)),
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
+			// description
+			`cURL Proxy:\n` +
+			`cURL Proxy is an unauthenticated, non-caching, Node.js HTTP(S) proxy that supports batch requests and is driven by URL query. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through custom JavaScript logic, which can chain requests and merge responses. It also supports retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and bypasses CORS response restrictions, useful for debugging and development.\n\n` +
 			// usage
 			`Usage:\n${url.origin}${url.pathname}?` +
 			`${SearchParam.URL}=<url,multi>` +
@@ -53,12 +57,14 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n\nURL Parameters:\n` +
 			`* ${
 				SearchParam.URL.padEnd(width)
-			} - resource URL, default ${
+			} - resource URL, ${
 				PROTOCOL_DEFAULT
-			}, required, repeatable (max. ${URL_COUNT_MAX}), first response used, others in ${
+			} assumed, required, repeatable (max. ${
+				URL_COUNT_MAX
+			}), first response used, others in ${
 				formatHttpHeader(Header.X_PROXY_RESPONSES)
 			}\n` +
-			`* ${SearchParam.FASTEST.padEnd(width)} - return first completed response, abort others\n` +
+			`* ${SearchParam.FASTEST.padEnd(width)} - return first available response, abort others\n` +
 			// headers
 			`* ${
 				SearchParam.HEADERS.padEnd(width)
@@ -139,42 +145,54 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
 
-/** does not use `encodeBody` */
+async function formatHelpMd(url = SERVICE_URL_DEFAULT, message?: string) {
+	const {origin, pathname} = new URL(url), serviceUrl = `${origin}${pathname}`
+	if (!message)
+		try {
+			const
+				text = fileText(Filename.TEMPLATE_MD_CACHED_HTML),
+				index = text.lastIndexOf(SERVICE_URL_DEFAULT)
+			return text.slice(0, index) + serviceUrl + text.slice(index + serviceUrl.length)
+		}
+		catch {}
+	const text = (message ? `# Error\n\`\`\`\n${message}\n\`\`\`\n` : '') +
+		fileText(Filename.README_MD)
+			.replace(SERVICE_URL_DEFAULT, serviceUrl)
+	return await fetch(GITHUB_API_MD, {
+		method: HttpMethod.POST,
+		headers: new Headers({
+			[Header.ACCEPT]: AcceptHeader.HTML,
+			[Header.X_GH_API_VERSION]: GITHUB_API_VER,
+			...GITHUB_API_TOKEN ? {
+				[Header.AUTHORIZATION]: AUTHORIZATION_BEARER + GITHUB_API_TOKEN,
+			} : {},
+		}),
+		body: JSON.stringify({text}),
+	})
+		.then(res => {
+			if (!res.ok)
+				throw new Error(`${res.status} ${res.statusText}`)
+			else if (res.headers.has(Header.RETRY_AFTER) ||
+				res.headers.get(Header.X_RATELIMIT_REMAINING) === '0'
+			)
+				throw new Error('Rate limit error')
+			return res
+		})
+		.then(res => res.text())
+		.then(html =>
+			fileText(Filename.TEMPLATE_MD).replace(
+				TEMPLATE_CONTENT,
+				html.replaceAll('href="#', 'href="#user-content-')
+			)
+		)
+}
+
+/** neither streamed nor compressed */
 export async function helpResponse(req: Request, status = HttpStatus.OK, message?: string) {
 	const
-		url = new URL(req.url ?? SERVICE_URL_DEFAULT),
-		text = (message ? `# Error\n\`\`\`\n${message}\n\`\`\`\n` : '') +
-			fileText(Filename.README_MD)
-				.replace(SERVICE_URL_DEFAULT, `${url.origin}${url.pathname}`),
 		acceptHtml = resolveAcceptHeader(req.headers.get(Header.ACCEPT),
 			[AcceptHeader.HTML], AcceptHeader.ANY) !== AcceptHeader.ANY,
-		result = acceptHtml ? await fetch(GITHUB_API_MD, {
-			method: HttpMethod.POST,
-			headers: new Headers({
-				[Header.ACCEPT]: AcceptHeader.HTML,
-				[Header.X_GH_API_VERSION]: GITHUB_API_VER,
-				...GITHUB_API_TOKEN ? {
-					[Header.AUTHORIZATION]: AUTHORIZATION_BEARER + GITHUB_API_TOKEN,
-				} : {},
-			}),
-			body: JSON.stringify({text}),
-		})
-			.then(res => {
-				if (!res.ok)
-					throw new Error(`${res.status} ${res.statusText}`)
-				else if (res.headers.has(Header.RETRY_AFTER) ||
-					res.headers.get(Header.X_RATELIMIT_REMAINING) === '0'
-				)
-					throw new Error('Rate limit error')
-				return res
-			})
-			.then(res => res.text())
-			.then(html =>
-				fileText(Filename.TEMPLATE_MD).replace(
-					TEMPLATE_CONTENT,
-					html.replaceAll('href="#', 'href="#user-content-')
-				)
-			)
+		result = acceptHtml ? await formatHelpMd(req.url, message)
 			.catch(() => formatHelp(message, req.url, acceptHtml))
 			: formatHelp(message, req.url, acceptHtml)
 	return new Response(result, {

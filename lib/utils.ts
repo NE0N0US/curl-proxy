@@ -90,7 +90,7 @@ export function checkAbortSignal(signal?: AbortSignal, message?: string) {
 		throw signal.reason ?? getAbortError(message)
 }
 
-/** decode base64 */
+/** decode base64 @byLlm */
 export function atobStream() {
 	let leftover = ''
 	return new stream.Transform({
@@ -112,7 +112,7 @@ export function atobStream() {
 	})
 }
 
-/** encode base64 */
+/** encode base64 @byLlm */
 export function btoaStream() {
 	let leftover = Buffer.alloc(0)
 	return new stream.Transform({

@@ -1,6 +1,9 @@
+# cURL Proxy
+**cURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes) · [Examples](#examples)</sub>
+
 # Usage
 ```url
-http://localhost:3000/?url=<url,multi>
+http://localhost:2077/?url=<url,multi>
   [&fastest]
   [&headers=<json_object>]
   [&delheaders=<json_array>]
@@ -22,8 +25,8 @@ http://localhost:3000/?url=<url,multi>
 ```
 
 ## URL Parameters
-- `url` - resource URL, default `http`, *required*, *repeatable* (max. `16`), first response used, others in `X-Proxy-Responses`
-- `fastest` - return first completed response, abort others
+- `url` - resource URL, `http` assumed, *required*, *repeatable* (max. `16`), first response used, others in `X-Proxy-Responses`
+- `fastest` - return first available response, abort others
 - `headers` - request headers to overwrite (`Host` is determined dynamically)
 - `delheaders` - names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
   ```jsonc
@@ -168,3 +171,8 @@ type CustomResult =
   | 4G   |   50 000 | 15 000 |
   | 4G+  |  100 000 | 40 000 |
 - You can [ask DeepWiki](https://deepwiki.com/NE0N0US/curl-proxy) about this project
+
+### Examples
+Under construction
+
+[(Top)](#curl-proxy)

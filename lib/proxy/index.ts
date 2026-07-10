@@ -3,7 +3,7 @@ import {checkAbortSignal} from '../utils'
 import {AcceptEncodingHeader, Header, HttpMethod, HttpStatus, ACCEPT_ENCODING_HEADER_ALL, resolveAcceptHeader, resolveUrl, streamify} from '../http'
 
 import {SearchParam, parseParams} from './params'
-import {delSetHeaders, parseRecursionHeader, processResHeaders} from './headers'
+import {processReqHeaders, parseRecursionHeader, processResHeaders} from './headers'
 import {ResBodyParam, encodeBody, throttleBody, trackBody, transformBody} from './body'
 import {helpResponse} from './help'
 import {processCustom} from './custom'
@@ -51,7 +51,7 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 		responses.shift()
 	}
 	else {
-		res = await Promise.race(responsePromises)
+		res = await Promise.any(responsePromises)
 		requestAborters.forEach(aborter => aborter.abort())
 	}
 	return {res, responses}
@@ -84,7 +84,7 @@ export async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt
 						(retry > attempt ? req.clone() : req).body,
 						throttleUp || throttle
 					),
-				headers: delSetHeaders(req.headers, searchParams),
+				headers: processReqHeaders(req.headers, searchParams),
 				signal: AbortSignal.any([
 					req.signal,
 					...timeout ? [AbortSignal.timeout(timeout)] : [],

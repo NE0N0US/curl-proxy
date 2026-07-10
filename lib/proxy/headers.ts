@@ -41,7 +41,7 @@ export function parseRecursionHeader(headers: Headers, fallback = 0) {
 }
 
 /** `Connection` is deleted along with headers listed in it */
-export function delSetHeaders(headers: Headers, params: URLSearchParams) {
+export function processReqHeaders(headers: Headers, params: URLSearchParams) {
 	const
 		skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null,
 		connection = headers.get(Header.CONNECTION)

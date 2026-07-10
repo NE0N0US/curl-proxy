@@ -5,6 +5,7 @@ import {escapeRegex} from './utils'
 
 export const PROTOCOL_DEFAULT = 'http'
 
+/** only utilized */
 export enum AcceptHeader {
 	HTML = 'text/html',
 	ANY = '*/*',
@@ -43,6 +44,7 @@ export const AC_EXPOSE_HEADERS_SAFELIST = Object.freeze([
 
 export const AUTHORIZATION_BEARER = 'Bearer '
 
+/** only utilized */
 export enum Header {
 	// accept
 	ACCEPT = 'accept',
@@ -86,12 +88,14 @@ const HEADER_NAME_EXCEPTION: Readonly<StringRecord> = Object.freeze({
 	'sec-ch-dpr': 'Sec-CH-DPR',
 })
 
+/** only utilized */
 export enum HttpMethod {
 	GET = 'GET',
 	HEAD = 'HEAD',
 	POST = 'POST',
 }
 
+/** only utilized */
 export enum HttpStatus {
 	OK = 200,
 	BAD_REQUEST = 400,

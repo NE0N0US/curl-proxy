@@ -68,7 +68,7 @@ export function encodeBody(body: Body, encoding: string, signal?: AbortSignal): 
 	) as any : body
 }
 
-/** limit bandwidth */
+/** limit bandwidth @byLlm */
 export function throttleBody(body: Body, kbps: number, options: Partial<{
 	signal: AbortSignal,
 	tick: number,

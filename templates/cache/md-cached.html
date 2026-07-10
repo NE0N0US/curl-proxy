@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" name="viewport" content="width=device-width,initial-scale=1">
+		<title>cURL Proxy</title>
+		<link rel="icon" href="data:image/vnd.microsoft.icon;base64,">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css">
+		<style>
+			html, body {
+				color-scheme: light dark;
+				overscroll-behavior: none;
+				margin: 0;
+				padding: 0;
+			}
+			.markdown-body {
+				box-sizing: border-box;
+				min-height: 100vh;
+				min-height: 100dvh;
+				padding: 2rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="markdown-body"><div class="markdown-heading"><h1 class="heading-element">cURL Proxy</h1><a id="user-content-curl-proxy" class="anchor" aria-label="Permalink: cURL Proxy" href="#user-content-curl-proxy"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>cURL Proxy</strong> is an unauthenticated, non-caching, Node.js <strong>HTTP(S) proxy</strong> that supports batch requests and is <a href="#user-content-url-parameters">driven by URL query</a>. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through <em><a href="#user-content-typescript-declaration-of-resbodyjavascript">custom JavaScript logic</a></em>, which can chain requests and merge responses. <em>It also supports</em> retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and <em>bypasses CORS</em> response restrictions, useful for debugging and development. <sub><a href="#user-content-notes">Notes</a> · <a href="#user-content-examples">Examples</a></sub></p>
+<div class="markdown-heading"><h1 class="heading-element">Usage</h1><a id="user-content-usage" class="anchor" aria-label="Permalink: Usage" href="#user-content-usage"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="highlight highlight-source-ini"><pre>http://localhost:2077/?<span class="pl-k">url</span>=&lt;url,multi&gt;
+  [&amp;fastest]
+  [&amp;<span class="pl-k">headers</span>=&lt;json_object&gt;]
+  [&amp;<span class="pl-k">delheaders</span>=&lt;json_array&gt;]
+  [&amp;<span class="pl-k">resheaders</span>=&lt;json_object&gt;]
+  [&amp;<span class="pl-k">delresheaders</span>=&lt;json_array&gt;]
+  [&amp;skipdefaults]
+  [&amp;<span class="pl-k">method</span>=&lt;http_method&gt;]
+  [&amp;<span class="pl-k">body</span>=&lt;body_text&gt;]
+  [&amp;<span class="pl-k">resbody</span>=&lt;action&gt;]
+  [&amp;<span class="pl-k">status</span>=&lt;status_code&gt;]
+  [&amp;<span class="pl-k">statustext</span>=&lt;status_message&gt;]
+  [&amp;<span class="pl-k">retry</span>=&lt;<span class="pl-k">limit</span>=0&gt;]
+  [&amp;<span class="pl-k">retryin</span>=&lt;<span class="pl-k">milliseconds</span>=0&gt;]
+  [&amp;<span class="pl-k">retryfactor</span>=&lt;<span class="pl-k">number</span>=1&gt;]
+  [&amp;<span class="pl-k">retrylimit</span>=&lt;<span class="pl-k">milliseconds</span>=Infinity&gt;]
+  [&amp;<span class="pl-k">timeout</span>=&lt;<span class="pl-k">milliseconds</span>=300000&gt;]
+  [&amp;<span class="pl-k">throttle</span>=&lt;<span class="pl-k">kbps</span>=Infinity&gt;]
+  [&amp;<span class="pl-k">throttleup</span>=&lt;<span class="pl-k">kbps</span>=Infinity&gt;]</pre></div>
+<div class="markdown-heading"><h2 class="heading-element">URL Parameters</h2><a id="user-content-url-parameters" class="anchor" aria-label="Permalink: URL Parameters" href="#user-content-url-parameters"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<code>url</code> - resource URL, <code>http</code> assumed, <em>required</em>, <em>repeatable</em> (max. <code>16</code>), first response used, others in <code>X-Proxy-Responses</code>
+</li>
+<li>
+<code>fastest</code> - return first available response, abort others</li>
+<li>
+<code>headers</code> - request headers to overwrite (<code>Host</code> is determined dynamically)</li>
+<li>
+<code>delheaders</code> - names of request headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
+<div class="highlight highlight-source-json-comments"><pre>[
+  <span class="pl-c"><span class="pl-c">//</span> https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers</span>
+  <span class="pl-s"><span class="pl-pds">"</span>Connection<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Keep-Alive<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Proxy-Authorization<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Trailer<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Transfer-Encoding<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>TE<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Upgrade<span class="pl-pds">"</span></span>,
+  <span class="pl-c"><span class="pl-c">//</span> https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/304</span>
+  <span class="pl-s"><span class="pl-pds">"</span>Cache-Control<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Pragma<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>If-Modified-Since<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>If-None-Match<span class="pl-pds">"</span></span>,
+  <span class="pl-c"><span class="pl-c">//</span> real addresses</span>
+  <span class="pl-s"><span class="pl-pds">"</span>Origin<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Referer<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Via<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Forwarded<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>X-Forwarded-*<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>*-IP<span class="pl-pds">"</span></span>,
+  <span class="pl-c"><span class="pl-c">//</span> browser data</span>
+  <span class="pl-s"><span class="pl-pds">"</span>Sec-CH-*<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Sec-Fetch-*<span class="pl-pds">"</span></span>,
+]</pre></div>
+</li>
+<li>
+<code>resheaders</code> - response headers to overwrite (<code>Access-Control-Expose-Headers</code> is set automatically), in addition to:
+<div class="highlight highlight-source-json"><pre>{<span class="pl-ent">"Access-Control-Allow-Origin"</span>: <span class="pl-s"><span class="pl-pds">"</span>*<span class="pl-pds">"</span></span>}</pre></div>
+</li>
+<li>
+<code>delresheaders</code> - names of response headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
+<div class="highlight highlight-source-json-comments"><pre>[
+  <span class="pl-c"><span class="pl-c">//</span> https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers</span>
+  <span class="pl-s"><span class="pl-pds">"</span>Connection<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Keep-Alive<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Proxy-Authenticate<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Trailer<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Transfer-Encoding<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Upgrade<span class="pl-pds">"</span></span>,
+  <span class="pl-c"><span class="pl-c">//</span> for Access-Control-Allow-Origin</span>
+  <span class="pl-s"><span class="pl-pds">"</span>Access-Control-Allow-Credentials<span class="pl-pds">"</span></span>,
+]</pre></div>
+</li>
+<li>
+<code>skipdefaults</code> - do not apply default header changes, except <a href="#user-content-response-headers-safety">response safety behavior</a> and setting response <code>X-Proxy-Recursion</code> (max. <code>16</code>)</li>
+<li>
+<code>method</code> - request method override</li>
+<li>
+<code>body</code> - request body text</li>
+<li>
+<code>resbody</code> - response transformation:
+<ul>
+<li>
+<code>null</code> - remove response body</li>
+<li>
+<code>atob</code> - decode body from base64</li>
+<li>
+<code>btoa</code> - encode body to base64</li>
+<li>
+<code>javascript:…</code> - <a href="#user-content-typescript-declaration-of-resbodyjavascript">custom handler</a>, returns body, response or request</li>
+</ul>
+</li>
+<li>
+<code>status</code> - response status code to overwrite</li>
+<li>
+<code>statustext</code> - response status message to overwrite</li>
+<li>
+<code>retry</code> - retries after first request</li>
+<li>
+<code>retryin</code> - milliseconds between retries, supports exponential backoff:<br>
+<em>min</em>(<em>in</em> * <em>factor</em><sup><em>attempt</em></sup>, <em>limit</em>)</li>
+<li>
+<code>retryfactor</code> - backoff multiplier per retry (industry standard is <code>2</code>)</li>
+<li>
+<code>retrylimit</code> - backoff maximum milliseconds</li>
+<li>
+<code>timeout</code> - milliseconds to abort request after</li>
+<li>
+<code>throttle</code> - bidirectional bandwidth limit in kbit/s</li>
+<li>
+<code>throttleup</code> - upload bandwidth limit in kbit/s</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Response Headers Safety</h2><a id="user-content-response-headers-safety" class="anchor" aria-label="Permalink: Response Headers Safety" href="#user-content-response-headers-safety"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="highlight highlight-source-ts"><pre><span class="pl-c">// https://github.com/nodejs/undici/issues/2514</span>
+<span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'Content-Encoding'</span><span class="pl-kos">)</span><span class="pl-kos">)</span> <span class="pl-kos">{</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Encoding'</span><span class="pl-kos">)</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Length'</span><span class="pl-kos">)</span>
+<span class="pl-kos">}</span>
+<span class="pl-c">// recompress</span>
+<span class="pl-k">const</span> <span class="pl-s1">contentEncoding</span> <span class="pl-c1">=</span> <span class="pl-en">resolveAcceptHeader</span><span class="pl-kos">(</span><span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'Accept-Encoding'</span><span class="pl-kos">)</span><span class="pl-kos">)</span> <span class="pl-c1">||</span> <span class="pl-s">'gzip'</span>
+<span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-s1">contentEncoding</span> <span class="pl-c1">!==</span> <span class="pl-s">'identity'</span><span class="pl-kos">)</span> <span class="pl-kos">{</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">set</span><span class="pl-kos">(</span><span class="pl-s">'Content-Encoding'</span><span class="pl-kos">,</span> <span class="pl-s1">contentEncoding</span><span class="pl-kos">)</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Length'</span><span class="pl-kos">)</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">set</span><span class="pl-kos">(</span><span class="pl-s">'Transfer-Encoding'</span><span class="pl-kos">,</span> <span class="pl-s">'chunked'</span><span class="pl-kos">)</span>
+<span class="pl-kos">}</span>
+<span class="pl-c">// resbody param</span>
+<span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-kos">[</span><span class="pl-s">'null'</span><span class="pl-kos">,</span> <span class="pl-s">'atob'</span><span class="pl-kos">,</span> <span class="pl-s">'btoa'</span><span class="pl-kos">]</span><span class="pl-kos">.</span><span class="pl-en">includes</span><span class="pl-kos">(</span><span class="pl-s1">params</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'resbody'</span><span class="pl-kos">)</span><span class="pl-kos">?.</span><span class="pl-en">toLowerCase</span><span class="pl-kos">(</span><span class="pl-kos">)</span><span class="pl-kos">)</span><span class="pl-kos">)</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Length'</span><span class="pl-kos">)</span></pre></div>
+<div class="markdown-heading"><h3 class="heading-element">After running <code>resbody</code> <a href="#user-content-typescript-declaration-of-resbodyjavascript">custom handler</a>
+</h3><a id="user-content-after-running-resbody-custom-handler" class="anchor" aria-label="Permalink: After running resbodycustom handler" href="#user-content-after-running-resbody-custom-handler"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="highlight highlight-source-ts"><pre><span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-c1">!</span><span class="pl-s1">result</span> <span class="pl-k">instanceof</span> <span class="pl-v">Request</span> <span class="pl-c1">&amp;&amp;</span> <span class="pl-c1">!</span><span class="pl-s1">result</span> <span class="pl-k">instanceof</span> <span class="pl-v">Response</span> <span class="pl-c1">&amp;&amp;</span> <span class="pl-s1">result</span> <span class="pl-c1">!==</span> <span class="pl-c1">undefined</span><span class="pl-kos">)</span>
+  <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Length'</span><span class="pl-kos">)</span></pre></div>
+<div class="markdown-heading"><h2 class="heading-element">TypeScript Declaration of <code>resbody=javascript:…</code>
+</h2><a id="user-content-typescript-declaration-of-resbodyjavascript" class="anchor" aria-label="Permalink: TypeScript Declaration of resbody=javascript:…" href="#user-content-typescript-declaration-of-resbodyjavascript"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="highlight highlight-source-ts"><pre><span class="pl-k">declare</span> <span class="pl-k">function</span> <span class="pl-s1">custom</span><span class="pl-kos">(</span>
+  <span class="pl-c">// request with parameters applied</span>
+  <span class="pl-s1">req</span>: <span class="pl-smi">RequestView</span><span class="pl-kos">,</span>
+  <span class="pl-c">// first or fastest response with parameters applied</span>
+  <span class="pl-s1">res</span>: <span class="pl-smi">ResponseView</span><span class="pl-kos">,</span>
+  <span class="pl-c">// other responses, null if error</span>
+  <span class="pl-s1">responses</span>: <span class="pl-smi">Array</span><span class="pl-c1">&lt;</span><span class="pl-smi">ResponseView</span> <span class="pl-c1">|</span> <span class="pl-c1">null</span><span class="pl-c1">&gt;</span>
+<span class="pl-kos">)</span>: <span class="pl-smi">CustomResult</span>
+
+<span class="pl-k">interface</span> <span class="pl-smi">ReqResView</span> <span class="pl-kos">{</span>
+  <span class="pl-c1">url</span>: <span class="pl-smi">string</span>
+  <span class="pl-c1">headers</span>: <span class="pl-smi">Record</span><span class="pl-c1">&lt;</span><span class="pl-smi">string</span><span class="pl-kos">,</span> <span class="pl-smi">string</span><span class="pl-c1">&gt;</span>
+  <span class="pl-c">// body:</span>
+  <span class="pl-c1">bytes</span>: <span class="pl-smi">Uint8Array</span>
+  <span class="pl-c1">text</span>: <span class="pl-smi">string</span>
+  <span class="pl-c1">json</span>: <span class="pl-smi">any</span>
+<span class="pl-kos">}</span>
+
+<span class="pl-k">interface</span> <span class="pl-smi">RequestView</span> <span class="pl-k">extends</span> <span class="pl-smi">ReqResView</span> <span class="pl-kos">{</span>
+  <span class="pl-c1">method</span>: <span class="pl-smi">string</span>
+<span class="pl-kos">}</span>
+
+<span class="pl-k">interface</span> <span class="pl-smi">ResponseView</span> <span class="pl-k">extends</span> <span class="pl-smi">ReqResView</span> <span class="pl-kos">{</span>
+  <span class="pl-c1">cookies</span>: <span class="pl-smi">string</span><span class="pl-kos">[</span><span class="pl-kos">]</span>
+  <span class="pl-c1">ok</span>: <span class="pl-smi">boolean</span>
+  <span class="pl-c1">redirected</span>: <span class="pl-smi">boolean</span>
+  <span class="pl-c1">status</span>: <span class="pl-smi">number</span>
+  <span class="pl-c1">statusText</span>: <span class="pl-smi">string</span>
+<span class="pl-kos">}</span>
+
+<span class="pl-k">type</span> <span class="pl-smi">CustomResult</span> <span class="pl-c1">=</span>
+  <span class="pl-c1">|</span> <span class="pl-smi">Request</span>                     <span class="pl-c">// replace original request and refetch response</span>
+  <span class="pl-c1">|</span> <span class="pl-smi">Response</span>                    <span class="pl-c">// replace original response</span>
+  <span class="pl-c1">|</span> <span class="pl-c1">undefined</span>                   <span class="pl-c">// return original response</span>
+  <span class="pl-c1">|</span> <span class="pl-smi">ReadableStream</span> <span class="pl-c1">|</span> <span class="pl-smi">Uint8Array</span> <span class="pl-c">// replace response body with value</span>
+  <span class="pl-c1">|</span> <span class="pl-smi">unknown</span>                     <span class="pl-c">// replace response body with coerced value?.toString()</span>
+  <span class="pl-c1">|</span> <span class="pl-c1">null</span>                        <span class="pl-c">// remove response body</span></pre></div>
+<div class="markdown-heading"><h2 class="heading-element">Extra</h2><a id="user-content-extra" class="anchor" aria-label="Permalink: Extra" href="#user-content-extra"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h3 class="heading-element">Notes</h3><a id="user-content-notes" class="anchor" aria-label="Permalink: Notes" href="#user-content-notes"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>
+<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent" rel="nofollow">Escape</a> complex parameters (<code>url</code>, <code>body</code>, <code>resbody=javascript:…</code>) using tools like <a href="https://www.postman.com/" rel="nofollow">Postman</a>
+</li>
+<li>Additional <code>url</code> along with <code>skipdefaults</code> can be used to debug requests using services like <a href="https://webhook.site/" rel="nofollow">Webhook.site</a>
+</li>
+<li>You can debug requests and get fake responses in <a href="https://httpbin.org/" rel="nofollow">httpbin</a> and <a href="https://jsonplaceholder.typicode.com/" rel="nofollow">JSONPlaceholder</a>
+</li>
+<li>You can edit JSON objects and arrays in <a href="https://dataformatterpro.com/json-editor/" rel="nofollow">visual editors</a> and should <a href="https://jsonlint.com/json-minify" rel="nofollow">minify</a> it</li>
+<li>Both <code>url</code> count and <em>recursion</em> level are limited for performance and security reasons</li>
+<li>HTTP reference: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers" rel="nofollow">headers</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods" rel="nofollow">request methods</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status" rel="nofollow">response status codes</a>
+</li>
+<li>Default response header changes allow <em>bypassing CORS</em> restrictions on <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin" rel="nofollow">request origin</a> and <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers" rel="nofollow">response headers</a>
+</li>
+<li>
+<code>resbody</code> custom handlers support <a href="https://test262.fyi/#%7Cqjs" rel="nofollow">most of ES2025</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto" rel="nofollow">crypto</a> object and following Web APIs:
+<ul>
+<li><a href="https://developer.mozilla.org/docs/Web/API/URL" rel="nofollow">URL</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/URLSearchParams" rel="nofollow">URLSearchParams</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/FormData" rel="nofollow">FormData</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/Headers" rel="nofollow">Headers</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/Request" rel="nofollow">Request</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/Response" rel="nofollow">Response</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/Blob" rel="nofollow">Blob</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/TextEncoder" rel="nofollow">TextEncoder</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/TextDecoder" rel="nofollow">TextDecoder</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/ReadableStream" rel="nofollow">ReadableStream</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/WritableStream" rel="nofollow">WritableStream</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/TransformStream" rel="nofollow">TransformStream</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/DecompressionStream" rel="nofollow">DecompressionStream</a></li>
+<li><a href="https://developer.mozilla.org/docs/Web/API/CompressionStream" rel="nofollow">CompressionStream</a></li>
+</ul>
+</li>
+<li>Common mobile network speed, kbit/s:
+<table>
+<thead>
+<tr>
+<th align="center">Type</th>
+<th align="right">Download</th>
+<th align="right">Upload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">3G</td>
+<td align="right">384</td>
+<td align="right">256</td>
+</tr>
+<tr>
+<td align="center">H</td>
+<td align="right">7 000</td>
+<td align="right">2 000</td>
+</tr>
+<tr>
+<td align="center">H+</td>
+<td align="right">12 000</td>
+<td align="right">5 000</td>
+</tr>
+<tr>
+<td align="center">4G</td>
+<td align="right">50 000</td>
+<td align="right">15 000</td>
+</tr>
+<tr>
+<td align="center">4G+</td>
+<td align="right">100 000</td>
+<td align="right">40 000</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>You can <a href="https://deepwiki.com/NE0N0US/curl-proxy" rel="nofollow">ask DeepWiki</a> about this project</li>
+</ul>
+<div class="markdown-heading"><h3 class="heading-element">Examples</h3><a id="user-content-examples" class="anchor" aria-label="Permalink: Examples" href="#user-content-examples"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Under construction</p>
+<p><a href="#user-content-curl-proxy">(Top)</a></p>
+</div>
+	</body>
+</html>
