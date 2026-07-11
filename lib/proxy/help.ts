@@ -152,7 +152,7 @@ async function formatHelpMd(url = SERVICE_URL_DEFAULT, message?: string) {
 			const
 				text = fileText(Filename.TEMPLATE_MD_CACHED_HTML),
 				index = text.lastIndexOf(SERVICE_URL_DEFAULT)
-			return text.slice(0, index) + serviceUrl + text.slice(index + serviceUrl.length)
+			return text.slice(0, index) + serviceUrl + text.slice(index + SERVICE_URL_DEFAULT.length)
 		}
 		catch {}
 	const text = (message ? `# Error\n\`\`\`\n${message}\n\`\`\`\n` : '') +
