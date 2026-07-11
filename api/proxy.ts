@@ -1,6 +1,6 @@
 import undici from 'undici'
-import {GLOBAL_TIMEOUT} from '../lib/env'
-import {proxy} from '../lib/proxy'
+import {GLOBAL_TIMEOUT} from '../src/lib/env'
+import {proxy} from '../src/lib/proxy'
 
 undici.setGlobalDispatcher(new undici.Agent({
 	connect: {timeout: GLOBAL_TIMEOUT},

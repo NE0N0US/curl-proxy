@@ -9,9 +9,9 @@ import {SearchDefaults} from './headers'
 // #region - data
 
 enum Filename {
-	TEMPLATE_HELP = 'templates/help.html',
-	TEMPLATE_MD = 'templates/md.html',
-	TEMPLATE_MD_CACHED_HTML = 'templates/cache/md-cached.html',
+	TEMPLATE_HELP = 'src/templates/help.html',
+	TEMPLATE_MD = 'src/templates/md.html',
+	TEMPLATE_MD_CACHED_HTML = 'src/templates/cache/md-cached.html',
 	README_MD = 'README.md',
 }
 
