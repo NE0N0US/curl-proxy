@@ -1,0 +1,144 @@
+{
+  "repo_notes": [
+    {
+      "content": "Generate documentation in the style of a concise technical encyclopedia, combining the readability and structure of Wikipedia with the depth of an engineer-facing knowledge base. Write for developers who understand HTTP and programming but are unfamiliar with this project.\n\nOrganize documentation around concepts, behavior, motivations, and system interactions rather than repository structure or individual source files. Source files may be referenced naturally inside explanations, but they should not define the structure of the documentation.\n\nBe concise. Prefer one precise paragraph over several similar ones. Avoid repeating introductions, summaries, feature lists, definitions, or architectural overviews across pages. Assume the reader has already read parent pages. Every page should introduce mostly new information.\n\nAvoid generic filler such as 'This page explains...', 'The system provides...', 'One important aspect...', or repetitive restatements of project goals. Prefer concrete explanations, rationale, examples, tradeoffs, and implementation insights.\n\nPrefer prose over diagrams. Only generate a diagram if a simple relationship genuinely cannot be explained clearly using text.\n\nTreat curl-proxy as a programmable HTTP(S) proxy whose behavior is almost entirely driven by URL query parameters.\n\nImportant design motivations:\n- URL query parameters are the primary configuration mechanism because many real-world environments only allow modifying a URL, such as hyperlinks, redirects, webhook URLs, RSS feeds, V2Ray subscriptions, embedded URLs, bookmarklets, browser extensions, third-party integrations, or externally managed configuration.\n- The proxy intentionally does not implement caching because persistent storage is impractical in a serverless architecture and would fundamentally change the project's stateless nature.\n- JavaScript response processing exists to make the proxy a programmable request/response pipeline capable of arbitrary transformations, request chaining, response merging, protocol adaptation, and lightweight middleware-like behavior.\n- Streaming is preferred throughout the system to minimize memory usage, improve scalability, and avoid serverless request and response size limitations.\n- Recursive request execution is intentional and enables complex processing pipelines useful for development, debugging, testing, and automation.\n- Default request header filtering removes browser-specific and origin-related headers so proxied requests behave like ordinary non-browser HTTP clients while bypassing common CORS restrictions.\n\nFavor explaining why the system behaves the way it does over describing individual implementation details."
+    }
+  ],
+  "pages": [
+    {
+      "title": "Overview",
+      "purpose": "Introduces curl-proxy, its purpose, capabilities, architecture at a high level, and the main ideas behind the project.",
+      "page_notes": [
+        {
+          "content": "Explain what makes curl-proxy different from an ordinary HTTP proxy. Introduce URL-driven configuration, request and response transformations, programmable processing, streaming, retries, batching, recursion, and stateless serverless deployment without going into implementation details. Mention typical audiences such as frontend developers, API developers, automation engineers, and debugging workflows."
+        }
+      ]
+    },
+    {
+      "title": "Getting Started",
+      "parent": "Overview",
+      "purpose": "Shows how to run curl-proxy, configure the environment, and perform the first requests.",
+      "page_notes": [
+        {
+          "content": "Cover local development, Node.js requirements, Vercel development, environment variables only as needed, repository layout, running locally, making the first request, inspecting responses, and where readers should continue after becoming familiar with the basics."
+        }
+      ]
+    },
+    {
+      "title": "HTTP API Reference",
+      "parent": "Overview",
+      "purpose": "Complete reference for the public URL-driven API.",
+      "page_notes": [
+        {
+          "content": "Group parameters by purpose instead of implementation: target selection, request modification, response modification, body transformation, execution control, retries, timeouts, bandwidth limiting, recursion, and diagnostics. Explain parameter interactions, defaults, edge cases, and practical usage patterns instead of only listing definitions."
+        }
+      ]
+    },
+    {
+      "title": "Architecture Overview",
+      "purpose": "Explains how curl-proxy processes requests from arrival to final response and how the major subsystems cooperate.",
+      "page_notes": [
+        {
+          "content": "Describe the system as a sequence of processing stages instead of repository modules. Explain how URL parameters progressively transform request behavior before the final response is returned. Mention the responsibilities of major components without turning the page into a file walkthrough."
+        }
+      ]
+    },
+    {
+      "title": "Request Processing",
+      "parent": "Architecture Overview",
+      "purpose": "Describes the lifecycle of a proxied request.",
+      "page_notes": [
+        {
+          "content": "Cover parameter parsing, URL normalization, request construction, multi-URL requests, fastest-response mode, retries with exponential backoff, timeout handling, abort propagation, recursion, response aggregation, response selection, and error handling. Explain why the pipeline is organized in this order."
+        }
+      ]
+    },
+    {
+      "title": "Header Processing",
+      "parent": "Architecture Overview",
+      "purpose": "Explains how request and response headers are modified and protected.",
+      "page_notes": [
+        {
+          "content": "Describe default header removal, wildcard deletion, browser-header stripping, Connection header processing, CORS behavior, response safety rules, Content-Encoding handling, automatic Access-Control-Expose-Headers generation, recursion tracking headers, and the reasoning behind each behavior."
+        }
+      ]
+    },
+    {
+      "title": "Body Processing",
+      "parent": "Architecture Overview",
+      "purpose": "Explains streaming body transformations and HTTP payload handling.",
+      "page_notes": [
+        {
+          "content": "Explain streaming architecture, compression and decompression, transfer encoding, throttling, upload and download limits, base64 transformations, body replacement, response recompression, content-length implications, Web Streams versus Node streams, and why streaming is preferred over buffering."
+        }
+      ]
+    },
+    {
+      "title": "Programmable Response Processing",
+      "parent": "Architecture Overview",
+      "purpose": "Explains the JavaScript-based transformation system that allows arbitrary response processing.",
+      "page_notes": [
+        {
+          "content": "Describe the custom handler interface, request and response views, supported return values, request recursion, response replacement, response merging, chaining requests, available Web APIs, sandbox execution, execution limits, isolation model, supported JavaScript features, practical transformation patterns, and common implementation ideas."
+        }
+      ]
+    },
+    {
+      "title": "Behavior and Performance",
+      "purpose": "Explains runtime behavior, scalability characteristics, and performance-related design decisions.",
+      "page_notes": [
+        {
+          "content": "Discuss streaming versus buffering, memory usage, connection reuse, batching, fastest-response mode, retry behavior, abort propagation, bandwidth throttling, compression costs, serverless runtime characteristics, request concurrency, resource limits, and why these tradeoffs suit a stateless proxy."
+        }
+      ]
+    },
+    {
+      "title": "Security and Limitations",
+      "purpose": "Explains the security model, intentional restrictions, and operational boundaries of curl-proxy.",
+      "page_notes": [
+        {
+          "content": "Discuss the implications of an unauthenticated proxy, browser-header filtering, CORS bypass, sandbox isolation, recursion limits, batching limits, execution limits, timeout limits, denial-of-service considerations, statelessness, absence of authentication and caching, and situations where curl-proxy is not an appropriate solution."
+        }
+      ]
+    },
+    {
+      "title": "Design Philosophy",
+      "purpose": "Documents the architectural principles and motivations behind the project.",
+      "page_notes": [
+        {
+          "content": "Explain why the project is URL-driven, why it remains stateless, why caching is intentionally omitted, why JavaScript processing exists, why streaming is preferred, why recursion is supported, why browser-origin headers are removed, why the project targets serverless platforms, and how these decisions collectively create a lightweight programmable proxy instead of a traditional gateway."
+        }
+      ]
+    },
+    {
+      "title": "Real-world Use Cases",
+      "parent": "Design Philosophy",
+      "purpose": "Shows realistic situations where curl-proxy provides practical value.",
+      "page_notes": [
+        {
+          "content": "Generate practical scenarios instead of artificial examples. Include frontend development with CORS restrictions; debugging third-party APIs; modifying request or response headers; temporary API adaptation without writing backend code; combining multiple APIs into one response; request chaining; webhook testing; injecting authentication where only URLs are configurable; browser userscripts; bookmarklets; browser extensions; mobile app debugging; local development; reverse-engineering web APIs; rapid prototyping; lightweight automation; monitoring; response normalization between incompatible services; testing retry behavior; bandwidth simulation; response mocking; educational HTTP experiments; and other situations where changing only a URL is significantly easier than deploying custom middleware."
+        }
+      ]
+    },
+    {
+      "title": "Comparison with Traditional Proxies",
+      "parent": "Design Philosophy",
+      "purpose": "Compares curl-proxy with conventional forward and reverse proxies.",
+      "page_notes": [
+        {
+          "content": "Compare configuration model, programmability, deployment model, statefulness, caching, authentication, request transformation, response transformation, scripting, middleware capabilities, streaming, batching, recursion, intended use cases, operational complexity, and typical deployment scenarios. Emphasize that curl-proxy complements rather than replaces production reverse proxies."
+        }
+      ]
+    },
+    {
+      "title": "Design Tradeoffs",
+      "parent": "Design Philosophy",
+      "purpose": "Explains the deliberate compromises that shape the project.",
+      "page_notes": [
+        {
+          "content": "Discuss the advantages and disadvantages of remaining stateless; avoiding persistent storage; omitting caching; using URL parameters instead of configuration files; prioritizing streaming over buffering; targeting serverless runtimes; exposing programmable JavaScript execution while enforcing sandbox limits; allowing recursion with safeguards; minimizing dependencies; and optimizing for flexibility, portability, and experimentation over enterprise infrastructure features."
+        }
+      ]
+    }
+  ]
+}
