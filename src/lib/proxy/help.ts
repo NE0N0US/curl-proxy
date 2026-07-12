@@ -61,7 +61,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 				PROTOCOL_DEFAULT
 			} assumed, required, repeatable (max. ${
 				URL_COUNT_MAX
-			}), first response used, others in ${
+			}), first response used, other statuses in JSON ${
 				formatHttpHeader(Header.X_PROXY_RESPONSES)
 			}\n` +
 			`* ${SearchParam.FASTEST.padEnd(width)} - return first available response, abort others\n` +
@@ -127,9 +127,11 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`if (!result instanceof Request && !result instanceof Response && result !== undefined)\n  headers.delete('Content-Length')` +
 			// typescript declaration of resbody javascript
 			`\n\nTypeScript Declaration of "resbody=javascript:*"\n` +
-			`declare function custom(\n  // request with parameters applied\n  req: RequestView,\n  // first or fastest response with parameters applied\n  res: ResponseView,\n  // other responses, null if error\n  responses: Array<ResponseView | null>\n): CustomResult\ninterface ReqResView {\n  url: string\n  headers: Record<string, string>\n  // body:\n  bytes: Uint8Array\n  text: string\n  json: any\n}\ninterface RequestView extends ReqResView {\n  method: string\n}\ninterface ResponseView extends ReqResView {\n  cookies: string[]\n  ok: boolean\n  redirected: boolean\n  status: number\n  statusText: string\n}\ntype CustomResult =\n  | Request                     // replace original request and refetch response\n  | Response                    // replace original response\n  | undefined                   // return original response\n  | ReadableStream | Uint8Array // replace response body with value\n  | unknown                     // replace response body with coerced value?.toString()\n  | null                        // remove response body` +
+			`declare function custom(\n  // request with parameters applied\n  req: RequestView,\n  // first or fastest response with parameters applied\n  res: ResponseView,\n  // other responses, null if error\n  responses: Array<ResponseView | null>\n): CustomResult\ninterface ReqResView {\n  url: string\n  headers: Record<string, string>\n  // body:\n  body: ReadableStream | null\n  bytes: Uint8Array\n  text: string\n  json: any\n}\ninterface RequestView extends ReqResView {\n  method: string\n}\ninterface ResponseView extends ReqResView {\n  cookies: string[]\n  ok: boolean\n  redirected: boolean\n  status: number\n  statusText: string\n}\ntype CustomResult =\n  | Request                     // replace original request and refetch response\n  | Response                    // replace original response\n  | undefined                   // return original response\n  | ReadableStream | Uint8Array // replace response body with value\n  | unknown                     // replace response body with coerced value?.toString()\n  | null                        // remove response body` +
+			// notes
 			`\n\nExtra. Notes\n` +
 			`* Escape complex parameters (${SearchParam.URL}, ${SearchParam.BODY}, "${SearchParam.RES_BODY}=${ResBodyParam.JAVASCRIPT}…") using tools like https://www.postman.com/\n` +
+			`* Keep entire URL under deployment platform limit, 14 KB for Vercel: https://vercel.com/docs/errors/url_too_long\n` +
 			`* Additional ${SearchParam.URL} along with ${SearchParam.SKIP_DEFAULTS} can be used to debug requests using services like https://webhook.site/\n` +
 			`* You can debug requests and get fake responses in https://httpbin.org/ and https://jsonplaceholder.typicode.com/\n` +
 			`* You can edit JSON objects and arrays in visual editors (https://dataformatterpro.com/json-editor/) and should minify it (https://jsonlint.com/json-minify)\n` +
@@ -146,7 +148,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 }
 
 async function formatHelpMd(url = SERVICE_URL_DEFAULT, message?: string) {
-	const {origin, pathname} = new URL(url), serviceUrl = `${origin}${pathname}`
+	const {origin, pathname} = new URL(url), serviceUrl = origin + pathname
 	if (!message)
 		try {
 			const

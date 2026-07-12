@@ -36,7 +36,7 @@ export const SearchDefaults = Object.freeze({
 
 export function parseRecursionHeader(headers: Headers, fallback = 0) {
 	const recursionParam = headers.get(Header.X_PROXY_RECURSION)?.split(',')[0]!
-	return Number.isSafeInteger(+recursionParam) && +recursionParam >= 0
+	return (Number.isSafeInteger(+recursionParam) && +recursionParam >= 0)
 		? +recursionParam : fallback
 }
 

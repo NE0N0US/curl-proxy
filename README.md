@@ -25,7 +25,7 @@ http://localhost:2077/?url=<url,multi>
 ```
 
 ## URL Parameters
-- `url` - resource URL, `http` assumed, *required*, *repeatable* (max. `16`), first response used, others in `X-Proxy-Responses`
+- `url` - resource URL, `http` assumed, *required*, *repeatable* (max. `16`), first response used, other statuses in JSON `X-Proxy-Responses`
 - `fastest` - return first available response, abort others
 - `headers` - request headers to overwrite (`Host` is determined dynamically)
 - `delheaders` - names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
@@ -112,6 +112,7 @@ interface ReqResView {
   url: string
   headers: Record<string, string>
   // body:
+  body: ReadableStream | null
   bytes: Uint8Array
   text: string
   json: any
@@ -141,6 +142,7 @@ type CustomResult =
 ## Extra
 ### Notes
 - [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`) using tools like [Postman](https://www.postman.com/)
+- Keep entire URL under deployment platform limit, [14 KB for Vercel](https://vercel.com/docs/errors/url_too_long)
 - Additional `url` along with `skipdefaults` can be used to debug requests using services like [Webhook.site](https://webhook.site/)
 - You can debug requests and get fake responses in [httpbin](https://httpbin.org/) and [JSONPlaceholder](https://jsonplaceholder.typicode.com/)
 - You can edit JSON objects and arrays in [visual editors](https://dataformatterpro.com/json-editor/) and should [minify](https://jsonlint.com/json-minify) it

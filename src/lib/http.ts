@@ -162,7 +162,7 @@ export function deleteHeadersWildcard(headers: Headers, key: string) {
 
 /** single chunk */
 export function streamify(value: Bytes | string | null | undefined) {
-	return value === null || value === undefined ? value : new ReadableStream<Bytes>({
+	return (value === null || value === undefined) ? value : new ReadableStream<Bytes>({
 		start(controller) {
 			controller.enqueue(
 				value instanceof Uint8Array ? value : new TextEncoder().encode(value)

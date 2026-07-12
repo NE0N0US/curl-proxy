@@ -23,8 +23,8 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 			if (params.get(SearchParam.SKIP_DEFAULTS) === null)
 				headers.set(Header.HOST, new URL(url).host)
 			return fetch(url, new Request(
-				urls.length > 1 || params.get(SearchParam.RES_BODY)
-					?.startsWith(ResBodyParam.JAVASCRIPT) ? request.clone() : request,
+				(urls.length > 1 || params.get(SearchParam.RES_BODY)
+					?.startsWith(ResBodyParam.JAVASCRIPT)) ? request.clone() : request,
 				{
 					headers,
 					signal: AbortSignal.any([

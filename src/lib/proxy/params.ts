@@ -39,7 +39,7 @@ export function parseParams(searchParams: URLSearchParams) {
 			SearchParam.THROTTLE_UP,
 		].map(key => {
 			const param = params[key]
-			return (param?.match(/^\d+$/) && Number.isSafeInteger(+param) && +param > 0)
+			return ((param?.match(/^\d+$/) && Number.isSafeInteger(+param) && +param > 0))
 				? +param : 0
 		}),
 		doRunCustom = resbody?.startsWith(ResBodyParam.JAVASCRIPT),

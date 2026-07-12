@@ -6,61 +6,65 @@ import {checkAbortSignal} from '../utils'
 import {Header, streamify} from '../http'
 import {runSandboxed} from '../sandbox'
 
+import {SearchParam} from './params'
+
 // #region - functions
+
+/** `bytes`, `text` and `json` are smart accessors */
+async function reqResView(source: Request | Response, rejectGet?: Function) {
+	let bytes: Bytes, text: string, json
+	if (rejectGet)
+		source = source.clone()
+	else
+		bytes = !source.body ? new Uint8Array() : await new Response(source.body).bytes()
+	const view = {
+		url: source.url,
+		headers: Object.fromEntries(source.headers),
+		// body
+		body: source.body,
+		get bytes() {
+			rejectGet?.()
+			return bytes
+		},
+		set bytes(value) {
+			bytes = value
+		},
+		get text() {
+			rejectGet?.()
+			return text ??= new TextDecoder().decode(view.bytes)
+		},
+		set text(value) {
+			text = value
+		},
+		get json() {
+			rejectGet?.()
+			return json ??= JSON.parse(view.text)
+		},
+		set json(value) {
+			json = value
+		},
+	}
+	return view
+}
 
 /** @throws {any} */
 async function runCustom(
-	req: Request, res: Response, responses: Array<Response | null>, code: string,
-	timeout = RUN_CUSTOM_MS, memoryLimitBytes = RUN_CUSTOM_BYTES, useNodeVm = RUN_CUSTOM_UNSAFE
+	req: Request, res: Response, responses: Array<Response | null>, code: string, readBodies = false,
+	timeout = RUN_CUSTOM_MS, memoryLimitBytes = RUN_CUSTOM_BYTES, useNodeVm = RUN_CUSTOM_UNSAFE,
 ): Promise<Request | Response | Body | Bytes | unknown> {
-	let reqText, reqJson
+	let bodyRead = false
 	const
-		reqView = {
-			bytes: !req.body ? new Uint8Array() : await new Response(req.body).bytes(),
-			get text() {
-				return reqText ??= new TextDecoder().decode(reqView.bytes)
-			},
-			set text(text) {
-				reqText = text
-			},
-			get json() {
-				return reqJson ??= JSON.parse(reqView.text)
-			},
-			set json(json) {
-				reqJson = json
-			},
-			headers: Object.fromEntries(req.headers),
-			method: req.method,
-			url: req.url,
-		},
-		[resView, ...responsesViews] = await Promise.all([res, ...responses].map(async res => {
-			if (!res)
-				return res
-			let resText, resJson
-			const view = {
-				bytes: !res.body ? new Uint8Array() : await res.bytes(),
-				get text() {
-					return resText ??= new TextDecoder().decode(view.bytes)
-				},
-				set text(text) {
-					resText = text
-				},
-				get json() {
-					return resJson ??= JSON.parse(view.text)
-				},
-				set json(json) {
-					resJson = json
-				},
-				headers: Object.fromEntries(res.headers),
+		onBodyRead = readBodies ? undefined : () => bodyRead = true,
+		reqView = Object.assign(await reqResView(req, onBodyRead), {method: req.method}),
+		[resView, ...responsesViews] = await Promise.all([res, ...responses].map(async res =>
+			res ? Object.assign(await reqResView(res, onBodyRead), {
 				cookies: res.headers.getSetCookie(),
 				ok: res.ok,
 				redirected: res.redirected,
 				status: res.status,
 				statusText: res.statusText,
-				url: res.url,
-			}
-			return view
-		})),
+			}) : res
+		)),
 		expose = {
 			req: reqView,
 			res: resView!,
@@ -83,7 +87,9 @@ async function runCustom(
 			DecompressionStream,
 			CompressionStream,
 		}
-	return runSandboxed(code, expose, exposeClasses, timeout, memoryLimitBytes, useNodeVm)
+	const result = await runSandboxed(code, expose, exposeClasses, timeout, memoryLimitBytes, useNodeVm)
+	return (!readBodies && bodyRead)
+		? await runCustom(req, res, responses, code, true, timeout, memoryLimitBytes, useNodeVm) : result
 }
 
 /** @throws {any} */
@@ -102,8 +108,16 @@ export async function processCustom(
 	)
 	checkAbortSignal(req.signal)
 	let deleteContentLength
-	if (result instanceof Request)
-		state.request = result
+	if (result instanceof Request) {
+		const
+			{origin, pathname} = new URL(req.url),
+			url = new URL(result.url)
+		state.request = origin + pathname === url.origin + url.pathname
+			? result : new Request(new URL(
+				`?${SearchParam.URL}=${encodeURIComponent(result.url)}`,
+				req.url
+			), result)
+	}
 	if (result instanceof Response)
 		Object.assign(state, {
 			body: result.body,

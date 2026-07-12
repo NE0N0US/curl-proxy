@@ -7,6 +7,9 @@ import {Constructable} from './types'
 
 const NATIVE_INSTANCE = Symbol('native')
 
+// uncaught (scheduled) errors from ctx.dispose() because of wrapNativeClass
+process.on?.('uncaughtException', error => console.error(error))
+
 // #region - functions
 
 /** proxy getter and setter to target */
@@ -15,13 +18,13 @@ function proxyProperty<T extends Object>(
 	configurable?: boolean, enumerable?: boolean
 ) {
 	return {
-		get: 'value' in prop || prop.get ? function(this: T) {
+		get: ('value' in prop || prop.get) ? function(this: T) {
 			const value = getTarget(this)[name]
 			return typeof value === 'function' ? function(this: T, ...args: any[]) {
 				return getTarget(this)[name](...args)
 			} : value
 		} : undefined,
-		set: prop.writable || prop.set ? function(this: T, value: any) {
+		set: (prop.writable || prop.set) ? function(this: T, value: any) {
 			getTarget(this)[name] = value
 		} : undefined,
 		configurable: configurable ?? prop.configurable,
@@ -102,12 +105,16 @@ export async function runSandboxed(
 		return result?.[NATIVE_INSTANCE] ?? result
 	}
 	finally {
-		new Promise(resolve => setTimeout(resolve))
-			.then(() => {
-				arena.dispose()
-				ctx.dispose()
-			})
-			.catch(() => {})
+		try {
+			arena.dispose()
+			while (QuickJS.hasPendingJob())
+				QuickJS.executePendingJobs()
+			ctx.dispose()
+			QuickJS.dispose()
+		}
+		catch (error) {
+			console.error(error)
+		}
 	}
 }
 
