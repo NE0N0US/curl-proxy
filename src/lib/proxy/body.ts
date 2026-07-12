@@ -36,38 +36,6 @@ export function trackBody(body: Body, consolePrefix: string): Body {
 	}))
 }
 
-/** compress */
-export function encodeBody(body: Body, encoding: string, signal?: AbortSignal): Body {
-	if (!body)
-		return body
-	let transform: stream.Transform | undefined
-	switch (encoding) {
-		case AcceptEncodingHeader.GZIP:
-			transform = zlib.createGzip({level: zlib.constants.Z_BEST_COMPRESSION})
-			break
-		case AcceptEncodingHeader.DEFLATE:
-			transform = zlib.createDeflate({level: zlib.constants.Z_BEST_COMPRESSION})
-			break
-		case AcceptEncodingHeader.BROTLI:
-			transform = zlib.createBrotliCompress()
-			break
-		case AcceptEncodingHeader.ZSTD:
-			transform = zlib.createZstdCompress({params: {
-				[zlib.constants.ZSTD_c_compressionLevel]: zlib.constants.ZSTD_btultra2,
-			}})
-			break
-	}
-	function abort() {
-		transform?.destroy(signal?.reason ?? getAbortError())
-	}
-	if (signal?.aborted)
-		abort()
-	signal?.addEventListener('abort', abort, {once: true})
-	return transform ? stream.Readable.toWeb(
-		stream.Readable.fromWeb(body as any).pipe(transform)
-	) as any : body
-}
-
 /** limit bandwidth @byLlm */
 export function throttleBody(body: Body, kbps: number, options: Partial<{
 	signal: AbortSignal,
@@ -132,6 +100,38 @@ export function throttleBody(body: Body, kbps: number, options: Partial<{
 			})
 		},
 	})
+}
+
+/** compress */
+export function encodeBody(body: Body, encoding: string, signal?: AbortSignal): Body {
+	if (!body)
+		return body
+	let transform: stream.Transform | undefined
+	switch (encoding) {
+		case AcceptEncodingHeader.GZIP:
+			transform = zlib.createGzip({level: zlib.constants.Z_BEST_COMPRESSION})
+			break
+		case AcceptEncodingHeader.DEFLATE:
+			transform = zlib.createDeflate({level: zlib.constants.Z_BEST_COMPRESSION})
+			break
+		case AcceptEncodingHeader.BROTLI:
+			transform = zlib.createBrotliCompress()
+			break
+		case AcceptEncodingHeader.ZSTD:
+			transform = zlib.createZstdCompress({params: {
+				[zlib.constants.ZSTD_c_compressionLevel]: zlib.constants.ZSTD_btultra2,
+			}})
+			break
+	}
+	function abort() {
+		transform?.destroy(signal?.reason ?? getAbortError())
+	}
+	if (signal?.aborted)
+		abort()
+	signal?.addEventListener('abort', abort, {once: true})
+	return transform ? stream.Readable.toWeb(
+		stream.Readable.fromWeb(body as any).pipe(transform)
+	) as any : body
 }
 
 /** apply `resbody` param */

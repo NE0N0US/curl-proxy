@@ -51,6 +51,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n  [&${SearchParam.RETRY_FACTOR}=<number=1>]` +
 			`\n  [&${SearchParam.RETRY_LIMIT}=<milliseconds=Infinity>]` +
 			`\n  [&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
+			`\n  [&${SearchParam.TTFB}=<milliseconds=0>]` +
 			`\n  [&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
 			`\n  [&${SearchParam.THROTTLE_UP}=<kbps=Infinity>]` +
 			// url params
@@ -118,6 +119,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`* ${SearchParam.RETRY_FACTOR.padEnd(width)} - backoff multiplier per retry (industry standard is 2)\n` +
 			`* ${SearchParam.RETRY_LIMIT.padEnd(width)} - backoff maximum milliseconds\n` +
 			`* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after\n` +
+			`* ${SearchParam.TTFB.padEnd(width)} - milliseconds to first response byte\n` +
 			`* ${SearchParam.THROTTLE.padEnd(width)} - bidirectional bandwidth limit in kbit/s\n` +
 			`* ${SearchParam.THROTTLE_UP.padEnd(width)} - upload bandwidth limit in kbit/s` +
 			// response headers safety

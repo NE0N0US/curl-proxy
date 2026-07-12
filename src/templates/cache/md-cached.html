@@ -41,6 +41,7 @@
   [&amp;<span class="pl-k">retryfactor</span>=&lt;<span class="pl-k">number</span>=1&gt;]
   [&amp;<span class="pl-k">retrylimit</span>=&lt;<span class="pl-k">milliseconds</span>=Infinity&gt;]
   [&amp;<span class="pl-k">timeout</span>=&lt;<span class="pl-k">milliseconds</span>=300000&gt;]
+  [&amp;<span class="pl-k">ttfb</span>=&lt;<span class="pl-k">milliseconds</span>=0&gt;]
   [&amp;<span class="pl-k">throttle</span>=&lt;<span class="pl-k">kbps</span>=Infinity&gt;]
   [&amp;<span class="pl-k">throttleup</span>=&lt;<span class="pl-k">kbps</span>=Infinity&gt;]</pre></div>
 <div class="markdown-heading"><h2 class="heading-element">URL Parameters</h2><a id="user-content-url-parameters" class="anchor" aria-label="Permalink: URL Parameters" href="#user-content-url-parameters"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
@@ -112,6 +113,8 @@
 <code>retrylimit</code> - backoff maximum milliseconds</li>
 <li>
 <code>timeout</code> - milliseconds to abort request after</li>
+<li>
+<code>ttfb</code> - milliseconds to first response byte</li>
 <li>
 <code>throttle</code> - bidirectional bandwidth limit in kbit/s</li>
 <li>

@@ -18,6 +18,7 @@ export enum SearchParam {
 	RETRY_FACTOR = 'retryfactor',
 	RETRY_LIMIT = 'retrylimit',
 	TIMEOUT = 'timeout',
+	TTFB = 'ttfb',
 	THROTTLE = 'throttle',
 	THROTTLE_UP = 'throttleup',
 }
@@ -29,12 +30,13 @@ export function parseParams(searchParams: URLSearchParams) {
 			[SearchParam.TIMEOUT]: timeoutParam,
 			...params
 		} = Object.fromEntries(searchParams),
-		[status, retry, retryIn, retryFactor, retryLimit, throttle, throttleUp] = [
+		[status, retry, retryIn, retryFactor, retryLimit, ttfb, throttle, throttleUp] = [
 			SearchParam.STATUS,
 			SearchParam.RETRY,
 			SearchParam.RETRY_IN,
 			SearchParam.RETRY_FACTOR,
 			SearchParam.RETRY_LIMIT,
+			SearchParam.TTFB,
 			SearchParam.THROTTLE,
 			SearchParam.THROTTLE_UP,
 		].map(key => {
@@ -44,5 +46,6 @@ export function parseParams(searchParams: URLSearchParams) {
 		}),
 		doRunCustom = resbody?.startsWith(ResBodyParam.JAVASCRIPT),
 		timeout = Math.max(0, Number.isSafeInteger(+timeoutParam) ? +timeoutParam : 0)
-	return {params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, throttleUp, doRunCustom, timeout}
+	return {params, resbody, status, retry, retryIn, retryFactor,
+		retryLimit, ttfb, throttle, throttleUp, doRunCustom, timeout}
 }

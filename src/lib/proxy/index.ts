@@ -61,9 +61,10 @@ async function fetchMulti(request: Request, params: URLSearchParams) {
 export async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt = 0): Promise<Response> {
 	checkAbortSignal(req.signal)
 	const
+		now = Date.now(),
 		searchParams = new URL(req.url).searchParams,
-		{params, resbody, status, retry, retryIn, retryFactor, retryLimit, throttle, throttleUp, doRunCustom, timeout} =
-			parseParams(searchParams),
+		{params, resbody, status, retry, retryIn, retryFactor, retryLimit, ttfb,
+			throttle, throttleUp, doRunCustom, timeout} = parseParams(searchParams),
 		consolePrefix = `[${consoleCounter || '*'}:${depth || '*'}:${attempt || '*'}] `
 	let recursion = parseRecursionHeader(req.headers)
 	if (recursion > PROXY_RECURSION_MAX)
@@ -76,19 +77,21 @@ export async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt
 		// modify request
 		const
 			method = (params[SearchParam.METHOD] || req.method).toUpperCase(),
+			signal = AbortSignal.any([
+				req.signal,
+				...timeout ? [AbortSignal.timeout(timeout)] : [],
+			]),
 			newReq = new Request(req, {
 				method,
 				body: ([HttpMethod.GET, HttpMethod.HEAD].includes(method as HttpMethod)
 					? undefined : streamify(params[SearchParam.BODY]))
 					?? throttleBody(
 						(retry > attempt ? req.clone() : req).body,
-						throttleUp || throttle
+						throttleUp || throttle,
+						{signal}
 					),
 				headers: processReqHeaders(req.headers, searchParams),
-				signal: AbortSignal.any([
-					req.signal,
-					...timeout ? [AbortSignal.timeout(timeout)] : [],
-				]),
+				signal,
 				// @ts-expect-error
 				duplex: 'half',
 			})
@@ -133,16 +136,22 @@ export async function proxy(req: Request, consoleCounter = 0, depth = 0, attempt
 			}, doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined)
 		;(request ? request.headers : newResInit.headers as Headers)
 			.set(Header.X_PROXY_RECURSION, (recursion + 1)?.toString())
+		// delay response
+		if (Date.now() - now < ttfb)
+			await new Promise(resolve => setTimeout(resolve,
+				Math.max(0, ttfb - (Date.now() - now))
+			))
 		// pipe response
 		return request ? await proxy(request, consoleCounter, depth + 1, 0) : new Response(
 			trackBody(
-				encodeBody(
-					throttleBody(
+				throttleBody(
+					encodeBody(
 						transformBody(newResBody, resbody, req.signal),
-						throttle
+						contentEncoding,
+						req.signal
 					),
-					contentEncoding,
-					req.signal
+					throttle,
+					{signal: req.signal}
 				),
 				consolePrefix
 			),

@@ -20,6 +20,7 @@ http://localhost:2077/?url=<url,multi>
   [&retryfactor=<number=1>]
   [&retrylimit=<milliseconds=Infinity>]
   [&timeout=<milliseconds=300000>]
+  [&ttfb=<milliseconds=0>]
   [&throttle=<kbps=Infinity>]
   [&throttleup=<kbps=Infinity>]
 ```
@@ -70,6 +71,7 @@ http://localhost:2077/?url=<url,multi>
 - `retryfactor` - backoff multiplier per retry (industry standard is `2`)
 - `retrylimit` - backoff maximum milliseconds
 - `timeout` - milliseconds to abort request after
+- `ttfb` - milliseconds to first response byte
 - `throttle` - bidirectional bandwidth limit in kbit/s
 - `throttleup` - upload bandwidth limit in kbit/s
 
