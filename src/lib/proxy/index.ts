@@ -26,7 +26,7 @@ export function getProxy(
 			RUN_CUSTOM_MS: +(configInit?.RUN_CUSTOM_MS || 10_000),
 			RUN_CUSTOM_BYTES: +(configInit?.RUN_CUSTOM_BYTES || 2 ** 20 * 2 ** 8),
 			RUN_CUSTOM_UNSAFE: [true, 'true'].includes(configInit?.RUN_CUSTOM_UNSAFE as any),
-			ALLOW_HELP_HTML: true,
+			ALLOW_HELP_HTML: [true, 'true'].includes((configInit as ProxyConfigVercel)?.ALLOW_HELP_HTML as any),
 			GITHUB_API_MD: (configInit as ProxyConfigVercel)?.GITHUB_API_MD || 'https://api.github.com/markdown',
 			GITHUB_API_VER: (configInit as ProxyConfigVercel)?.GITHUB_API_VER || '2026-03-10',
 			GITHUB_API_TOKEN: (configInit as ProxyConfigVercel)?.GITHUB_API_TOKEN,

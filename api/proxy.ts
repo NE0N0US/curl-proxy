@@ -1,6 +1,6 @@
 import {getProxy} from '../src/lib/proxy/index.ts'
 
-const proxy: any = getProxy(process.env as any)
+const proxy: any = getProxy({...process.env, ALLOW_HELP_HTML: true} as any)
 
 let c = 0
 

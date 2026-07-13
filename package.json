@@ -1,9 +1,9 @@
 {
-	"name": "curl-proxy",
+	"name": "@ne0n0us/curl-proxy",
 	"description": "Unauthenticated, non-caching, Node.js HTTP(S) proxy that supports batch requests and is driven by URL query.",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/NE0N0US/curl-proxy"
+		"url": "git+https://github.com/NE0N0US/curl-proxy.git"
 	},
 	"bugs": {
 		"url": "https://github.com/NE0N0US/curl-proxy/issues"
@@ -14,14 +14,13 @@
 		"url": "https://ne0n0us.github.io/"
 	},
 	"license": "Apache-2.0",
-	"version": "2026-07-12",
+	"version": "0.1.4",
 	"engines": {
 		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"start": "vercel dev --listen 0.0.0.0:2077",
-		"prepublishOnly": "tsup --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts",
-		"publishVersion": "npm version $VER && git push --follow-tags"
+		"prepublishOnly": "tsup --format esm --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts"
 	},
 	"dependencies": {
 		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
@@ -33,13 +32,17 @@
 		"tsup": "^8.5.1",
 		"vercel": "^55.0.0"
 	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"sideEffects": false,
 	"type": "module",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
 		}
 	},
 	"files": [
