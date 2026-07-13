@@ -1,4 +1,4 @@
-import {ResBodyParam} from './body'
+import {ResBodyParam} from './body.ts'
 
 export enum SearchParam {
 	URL = 'url',

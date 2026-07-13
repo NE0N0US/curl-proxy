@@ -1,20 +1,82 @@
 {
 	"name": "curl-proxy",
-	"version": "2026-07-11",
+	"description": "Unauthenticated, non-caching, Node.js HTTP(S) proxy that supports batch requests and is driven by URL query.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/NE0N0US/curl-proxy"
+	},
+	"bugs": {
+		"url": "https://github.com/NE0N0US/curl-proxy/issues"
+	},
+	"homepage": "https://curl-proxy.vercel.app/",
+	"author": {
+		"name": "NE0N0US",
+		"url": "https://ne0n0us.github.io/"
+	},
+	"license": "Apache-2.0",
+	"version": "2026-07-12",
 	"engines": {
 		"node": ">=22.11.0"
 	},
 	"scripts": {
-		"start": "vercel dev --listen 0.0.0.0:2077"
+		"start": "vercel dev --listen 0.0.0.0:2077",
+		"prepublishOnly": "tsup --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts",
+		"publishVersion": "npm version $VER && git push --follow-tags"
 	},
 	"dependencies": {
-		"@jitl/quickjs-wasmfile-release-sync": "0.32.0",
-		"quickjs-emscripten-core": "0.32.0",
-		"quickjs-emscripten-sync": "1.11.0"
+		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+		"quickjs-emscripten-core": "^0.32.0",
+		"quickjs-emscripten-sync": "^1.11.0"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",
-		"tsc-alias": "^1.9.0",
-		"vercel": "^54.21.1"
-	}
+		"tsup": "^8.5.1",
+		"vercel": "^55.0.0"
+	},
+	"sideEffects": false,
+	"type": "module",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"NOTICE"
+	],
+	"peerDependencies": {
+		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+		"quickjs-emscripten-core": "^0.32.0",
+		"quickjs-emscripten-sync": "^1.11.0"
+	},
+	"keywords": [
+		"node",
+		"undici",
+		"vercel",
+		"quickjs",
+		"wasm",
+		"backend",
+		"serverless",
+		"app",
+		"http",
+		"https",
+		"h2",
+		"rest",
+		"api",
+		"fetch",
+		"proxy",
+		"orchestration",
+		"url",
+		"header",
+		"cors",
+		"retry",
+		"timeout",
+		"throttle",
+		"stream",
+		"transform",
+		"eval",
+		"vm"
+	]
 }

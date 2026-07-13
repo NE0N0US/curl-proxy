@@ -1,10 +1,10 @@
-import {GITHUB_API_MD, GITHUB_API_TOKEN, GITHUB_API_VER, GLOBAL_TIMEOUT, PROXY_RECURSION_MAX, URL_COUNT_MAX} from '../env'
-import {escapeHtml, fileText, formatStringArray, formatStringRecord, isArray, isRecord} from '../utils'
-import {AcceptHeader, Header, HttpMethod, HttpStatus, AUTHORIZATION_BEARER, PROTOCOL_DEFAULT, formatHttpHeader, resolveAcceptHeader, resolveUrl} from '../http'
+import {ProxyConfig, ProxyConfigVercel} from '../types.ts'
+import {escapeHtml, fileText, formatStringArray, formatStringRecord, isArray, isRecord} from '../utils.ts'
+import {AcceptHeader, Header, HttpMethod, HttpStatus, AUTHORIZATION_BEARER, PROTOCOL_DEFAULT, formatHttpHeader, resolveAcceptHeader, resolveUrl} from '../http.ts'
 
-import {SearchParam} from './params'
-import {ResBodyParam} from './body'
-import {SearchDefaults} from './headers'
+import {SearchParam} from './params.ts'
+import {ResBodyParam} from './body.ts'
+import {SearchDefaults} from './headers.ts'
 
 // #region - data
 
@@ -23,7 +23,7 @@ const TEMPLATE_CONTENT = 'TEMPLATE_CONTENT'
 
 // #region - functions
 
-function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = false) {
+function formatHelp(message: string | undefined, config: ProxyConfig, serviceUrl = SERVICE_URL_DEFAULT, html = false) {
 	const
 		url = new URL(resolveUrl(serviceUrl, serviceUrl)),
 		width = Math.max(...Object.values(SearchParam).map(({length}) => length)),
@@ -50,7 +50,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			`\n  [&${SearchParam.RETRY_IN}=<milliseconds=0>]` +
 			`\n  [&${SearchParam.RETRY_FACTOR}=<number=1>]` +
 			`\n  [&${SearchParam.RETRY_LIMIT}=<milliseconds=Infinity>]` +
-			`\n  [&${SearchParam.TIMEOUT}=<milliseconds=${GLOBAL_TIMEOUT}>]` +
+			`\n  [&${SearchParam.TIMEOUT}=<milliseconds=${config.GLOBAL_TIMEOUT}>]` +
 			`\n  [&${SearchParam.TTFB}=<milliseconds=0>]` +
 			`\n  [&${SearchParam.THROTTLE}=<kbps=Infinity>]` +
 			`\n  [&${SearchParam.THROTTLE_UP}=<kbps=Infinity>]` +
@@ -61,7 +61,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 			} - resource URL, ${
 				PROTOCOL_DEFAULT
 			} assumed, required, repeatable (max. ${
-				URL_COUNT_MAX
+				config.URL_COUNT_MAX
 			}), first response used, other statuses in JSON ${
 				formatHttpHeader(Header.X_PROXY_RESPONSES)
 			}\n` +
@@ -101,7 +101,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 				SearchParam.SKIP_DEFAULTS.padEnd(width)
 			} - do not apply default header changes, except response safety behavior and setting response ${
 				formatHttpHeader(Header.X_PROXY_RECURSION)
-			} (max. ${PROXY_RECURSION_MAX})\n`) +
+			} (max. ${config.PROXY_RECURSION_MAX})\n`) +
 			`* ${SearchParam.METHOD.padEnd(width)} - request method override\n` +
 			`* ${SearchParam.BODY.padEnd(width)} - request body text\n` +
 			// resbody
@@ -149,7 +149,7 @@ function formatHelp(message?: string, serviceUrl = SERVICE_URL_DEFAULT, html = f
 		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
 
-async function formatHelpMd(url = SERVICE_URL_DEFAULT, message?: string) {
+async function formatHelpMd(url = SERVICE_URL_DEFAULT, message: string | undefined, config: ProxyConfigVercel) {
 	const {origin, pathname} = new URL(url), serviceUrl = origin + pathname
 	if (!message)
 		try {
@@ -162,13 +162,13 @@ async function formatHelpMd(url = SERVICE_URL_DEFAULT, message?: string) {
 	const text = (message ? `# Error\n\`\`\`\n${message}\n\`\`\`\n` : '') +
 		fileText(Filename.README_MD)
 			.replace(SERVICE_URL_DEFAULT, serviceUrl)
-	return await fetch(GITHUB_API_MD, {
+	return await fetch(config.GITHUB_API_MD, {
 		method: HttpMethod.POST,
 		headers: new Headers({
 			[Header.ACCEPT]: AcceptHeader.HTML,
-			[Header.X_GH_API_VERSION]: GITHUB_API_VER,
-			...GITHUB_API_TOKEN ? {
-				[Header.AUTHORIZATION]: AUTHORIZATION_BEARER + GITHUB_API_TOKEN,
+			[Header.X_GH_API_VERSION]: config.GITHUB_API_VER,
+			...config.GITHUB_API_TOKEN ? {
+				[Header.AUTHORIZATION]: AUTHORIZATION_BEARER + config.GITHUB_API_TOKEN,
 			} : {},
 		}),
 		body: JSON.stringify({text}),
@@ -192,13 +192,13 @@ async function formatHelpMd(url = SERVICE_URL_DEFAULT, message?: string) {
 }
 
 /** neither streamed nor compressed */
-export async function helpResponse(req: Request, status = HttpStatus.OK, message?: string) {
+export async function helpResponse(req: Request, config: ProxyConfigVercel, status = HttpStatus.OK, message?: string) {
 	const
-		acceptHtml = resolveAcceptHeader(req.headers.get(Header.ACCEPT),
+		acceptHtml = config.ALLOW_HELP_HTML && resolveAcceptHeader(req.headers.get(Header.ACCEPT),
 			[AcceptHeader.HTML], AcceptHeader.ANY) !== AcceptHeader.ANY,
-		result = acceptHtml ? await formatHelpMd(req.url, message)
-			.catch(() => formatHelp(message, req.url, acceptHtml))
-			: formatHelp(message, req.url, acceptHtml)
+		result = acceptHtml ? await formatHelpMd(req.url, message, config)
+			.catch(() => formatHelp(message, config, req.url, acceptHtml))
+			: formatHelp(message, config, req.url, acceptHtml)
 	return new Response(result, {
 		status,
 		headers: {
@@ -209,4 +209,3 @@ export async function helpResponse(req: Request, status = HttpStatus.OK, message
 }
 
 // #endregion
-

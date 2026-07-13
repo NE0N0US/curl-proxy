@@ -1,9 +1,9 @@
-import {StringRecord} from '../types'
-import {isArray, isRecord, tryParse} from '../utils'
-import {AcceptEncodingHeader, Header, AC_EXPOSE_HEADERS_SAFELIST, TRANSFER_ENCODING_CHUNKED, deleteHeadersWildcard, formatHttpHeader} from '../http'
+import {StringRecord} from '../types.ts'
+import {isArray, isRecord, tryParse} from '../utils.ts'
+import {AcceptEncodingHeader, Header, AC_EXPOSE_HEADERS_SAFELIST, TRANSFER_ENCODING_CHUNKED, deleteHeadersWildcard, formatHttpHeader} from '../http.ts'
 
-import {SearchParam} from './params'
-import {ResBodyParam} from './body'
+import {SearchParam} from './params.ts'
+import {ResBodyParam} from './body.ts'
 
 // #region - data
 

@@ -1,9 +1,9 @@
 import zlib from 'node:zlib'
 import stream from 'node:stream'
 
-import {Body, Bytes} from '../types'
-import {atobStream, btoaStream, getAbortError} from '../utils'
-import {AcceptEncodingHeader} from '../http'
+import {Body, Bytes} from '../types.ts'
+import {atobStream, btoaStream, getAbortError} from '../utils.ts'
+import {AcceptEncodingHeader} from '../http.ts'
 
 // #region - data
 
@@ -21,17 +21,18 @@ export enum ResBodyParam {
 // #region - functions
 
 /** first and last chunks */
-export function trackBody(body: Body, consolePrefix: string): Body {
+export function trackBody(body: Body, callback: (last: boolean) => any): Body {
 	let isFirst = true
 	return body?.pipeThrough(new TransformStream({
 		transform(chunk, controller) {
 			if(isFirst)
-				console.time(consolePrefix + 'body')
+				callback?.(false)
 			isFirst = false
 			controller.enqueue(chunk)
 		},
 		flush() {
-			console.timeEnd(consolePrefix + 'body')
+			callback?.(true)
+
 		},
 	}))
 }

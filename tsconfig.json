@@ -1,5 +1,9 @@
 {
 	"compilerOptions": {
-		"types": ["node"]
+		"types": ["node"],
+		"allowImportingTsExtensions": true,
+		"rewriteRelativeImportExtensions": true,
+		"module": "nodenext",
+		"moduleResolution": "nodenext"
 	}
 }

@@ -3,12 +3,9 @@ import {newQuickJSWASMModuleFromVariant, shouldInterruptAfterDeadline} from 'qui
 import RELEASE_SYNC from '@jitl/quickjs-wasmfile-release-sync'
 import {Arena} from 'quickjs-emscripten-sync'
 
-import {Constructable} from './types'
+import {Constructable} from './types.ts'
 
 const NATIVE_INSTANCE = Symbol('native')
-
-// uncaught (scheduled) errors from ctx.dispose() because of wrapNativeClass
-process.on?.('uncaughtException', error => console.error(error))
 
 // #region - functions
 
@@ -76,7 +73,7 @@ function wrapNativeClass<T extends Object>(NativeClass: Constructable<T>) {
  */
 export async function runSandboxed(
 	code: string, expose?: Object, exposeClasses?: Record<string, Constructable>,
-	timeout?: number, memoryLimitBytes?: number, useNodeVm?: boolean
+	timeout?: number, memoryLimitBytes?: number, useNodeVm?: boolean, onDisposeError?: (error: any) => any
 ) {
 	if (useNodeVm)
 		return vm.runInNewContext(code, {
@@ -112,8 +109,8 @@ export async function runSandboxed(
 			ctx.dispose()
 			QuickJS.dispose()
 		}
-		catch (error) {
-			console.error(error)
+		catch (error: any) {
+			onDisposeError?.(error)
 		}
 	}
 }

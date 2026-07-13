@@ -1,5 +1,5 @@
-import {Bytes, StringRecord} from './types'
-import {escapeRegex} from './utils'
+import {Bytes, StringRecord} from './types.ts'
+import {escapeRegex} from './utils.ts'
 
 // #region - data
 
@@ -107,9 +107,10 @@ export enum HttpStatus {
 
 // #region - functions
 
-/** relative (starting with `/`, `./`, `../`, `?`, `#`), whole absolute or absolute without protocol */
+/** relative (`.` or starting with `/`, `./`, `../`, `?`, `#`), whole absolute or absolute without protocol */
 export function resolveUrl(url: string, base: string, protocol = PROTOCOL_DEFAULT) {
-	const isRelative = url.startsWith('/') ||
+	const isRelative = url === '.' ||
+		url.startsWith('/') ||
 		url.startsWith('./') ||
 		url.startsWith('../') ||
 		url.startsWith('?') ||

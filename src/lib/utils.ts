@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import stream from 'node:stream'
 
-import {StringRecord} from './types'
+import {StringRecord} from './types.ts'
 
 const fileTextCache: Record<string, string> = {}
 

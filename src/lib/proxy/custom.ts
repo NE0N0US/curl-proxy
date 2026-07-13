@@ -1,12 +1,11 @@
 import crypto from 'node:crypto'
 
-import {Body, Bytes} from '../types'
-import {RUN_CUSTOM_BYTES, RUN_CUSTOM_MS, RUN_CUSTOM_UNSAFE} from '../env'
-import {checkAbortSignal} from '../utils'
-import {Header, streamify} from '../http'
-import {runSandboxed} from '../sandbox'
+import {Body, Bytes} from '../types.ts'
+import {checkAbortSignal} from '../utils.ts'
+import {Header, streamify} from '../http.ts'
+import {runSandboxed} from '../sandbox.ts'
 
-import {SearchParam} from './params'
+import {SearchParam} from './params.ts'
 
 // #region - functions
 
@@ -49,8 +48,9 @@ async function reqResView(source: Request | Response, rejectGet?: Function) {
 
 /** @throws {any} */
 async function runCustom(
-	req: Request, res: Response, responses: Array<Response | null>, code: string, readBodies = false,
-	timeout = RUN_CUSTOM_MS, memoryLimitBytes = RUN_CUSTOM_BYTES, useNodeVm = RUN_CUSTOM_UNSAFE,
+	req: Request, res: Response, responses: Array<Response | null>, code: string,
+	timeout: number, memoryLimitBytes: number, useNodeVm: boolean,
+	onDisposeError: (error: any) => any, readBodies = false
 ): Promise<Request | Response | Body | Bytes | unknown> {
 	let bodyRead = false
 	const
@@ -87,16 +87,17 @@ async function runCustom(
 			DecompressionStream,
 			CompressionStream,
 		}
-	const result = await runSandboxed(code, expose, exposeClasses, timeout, memoryLimitBytes, useNodeVm)
+	const result = await runSandboxed(code, expose, exposeClasses, timeout, memoryLimitBytes, useNodeVm, onDisposeError)
 	return (!readBodies && bodyRead)
-		? await runCustom(req, res, responses, code, true, timeout, memoryLimitBytes, useNodeVm) : result
+		? await runCustom(req, res, responses, code, timeout, memoryLimitBytes, useNodeVm, onDisposeError, true) : result
 }
 
 /** @throws {any} */
 export async function processCustom(
 	req: Request, res: Response, responses: Array<Response | null>,
 	state: {request?: Request, body?: Body, headers: Headers, status: number, statusText: string},
-	code: string | undefined
+	code: string | undefined, timeout: number, memoryLimitBytes: number, useNodeVm: boolean,
+	onDisposeError: (error: any) => any,
 ) {
 	if (code === undefined)
 		return state
@@ -104,7 +105,11 @@ export async function processCustom(
 		req,
 		new Response(res.body, state),
 		responses,
-		code
+		code,
+		timeout,
+		memoryLimitBytes,
+		useNodeVm,
+		onDisposeError
 	)
 	checkAbortSignal(req.signal)
 	let deleteContentLength
