@@ -10,9 +10,10 @@ import {ResBodyParam, encodeBody, throttleBody, trackBody, transformBody} from '
 import {helpResponse} from './help.ts'
 import {processCustom} from './custom.ts'
 
-export function getProxy(
-	/** also accepts `process.env as any` */
-	configInit?: ProxyConfig,
+export {type ProxyConfig}
+
+export function createProxy(
+	configInit?: Partial<ProxyConfig>,
 	consoleObj: Partial<typeof globalThis.console> = console,
 	/** `quickjs-emscripten` has an issue where errors thrown by the context disposal scheduler cannot be caught normally and must be handled via the process `uncaughtException` handler. Otherwise, the process exits with an error code. Additionally, `quickjs-emscripten` calls `console.error()` when reporting other errors. */
 	onProcessUncaughtException: (error: Error) => any =
@@ -20,25 +21,23 @@ export function getProxy(
 ) {
 	const
 		config: ProxyConfigVercel = {
-			GLOBAL_TIMEOUT: +(configInit?.GLOBAL_TIMEOUT || 300_000),
-			URL_COUNT_MAX: +(configInit?.URL_COUNT_MAX || 16),
-			PROXY_RECURSION_MAX: +(configInit?.PROXY_RECURSION_MAX || 16),
-			RUN_CUSTOM_MS: +(configInit?.RUN_CUSTOM_MS || 10_000),
-			RUN_CUSTOM_BYTES: +(configInit?.RUN_CUSTOM_BYTES || 2 ** 20 * 2 ** 8),
-			RUN_CUSTOM_UNSAFE: [true, 'true'].includes(configInit?.RUN_CUSTOM_UNSAFE as any),
-			ALLOW_HELP_HTML: [true, 'true'].includes((configInit as ProxyConfigVercel)?.ALLOW_HELP_HTML as any),
-			GITHUB_API_MD: (configInit as ProxyConfigVercel)?.GITHUB_API_MD || 'https://api.github.com/markdown',
-			GITHUB_API_VER: (configInit as ProxyConfigVercel)?.GITHUB_API_VER || '2026-03-10',
-			GITHUB_API_TOKEN: (configInit as ProxyConfigVercel)?.GITHUB_API_TOKEN,
+			globalTimeout: configInit?.globalTimeout || 300_000,
+			urlCountMax: configInit?.urlCountMax || Number.MAX_SAFE_INTEGER,
+			proxyRecursionMax: configInit?.proxyRecursionMax || Number.MAX_SAFE_INTEGER,
+			runCustomMs: configInit?.runCustomMs || Number.MAX_SAFE_INTEGER,
+			runCustomBytes: configInit?.runCustomBytes || Number.MAX_SAFE_INTEGER,
+			runCustomUnsafe: configInit?.runCustomUnsafe || false,
+			allowHelpHtml: (configInit as ProxyConfigVercel)?.allowHelpHtml || false,
+			githubApiMd: (configInit as ProxyConfigVercel)?.githubApiMd || '',
+			githubApiVer: (configInit as ProxyConfigVercel)?.githubApiVer || '',
+			githubApiToken: (configInit as ProxyConfigVercel)?.githubApiToken,
 		},
 		dispatcher = new undici.Agent({
-			connect: {timeout: config.GLOBAL_TIMEOUT},
-			headersTimeout: config.GLOBAL_TIMEOUT,
-			bodyTimeout: config.GLOBAL_TIMEOUT,
-			keepAliveMaxTimeout: config.GLOBAL_TIMEOUT,
+			connect: {timeout: config.globalTimeout},
+			headersTimeout: config.globalTimeout,
+			bodyTimeout: config.globalTimeout,
 			strictContentLength: false,
-			// empty headers otherwise
-			allowH2: false,
+			allowH2: true,
 			autoSelectFamily: true,
 			maxHeaderSize: 2 ** 16,
 		}),
@@ -56,7 +55,7 @@ export function getProxy(
 		// send requests
 		const
 			urls = params.getAll(SearchParam.URL)
-				.slice(0, config.URL_COUNT_MAX)
+				.slice(0, config.urlCountMax)
 				.map(url => resolveUrl(url, req.url)),
 			requestAborters = urls.map(() => new AbortController()),
 			responsePromises = urls.map((url, index) => {
@@ -110,9 +109,9 @@ export function getProxy(
 				throttle, throttleUp, doRunCustom, timeout} = parseParams(searchParams),
 			consolePrefix = `[${consoleCounter || '*'}:${depth || '*'}:${attempt || '*'}] `
 		let recursion = parseRecursionHeader(req.headers)
-		if (recursion > config.PROXY_RECURSION_MAX)
+		if (recursion > config.proxyRecursionMax)
 			return await helpResponse(req, config, HttpStatus.LOOP_DETECTED,
-				`Proxy recursion limit of ${config.PROXY_RECURSION_MAX} exceeded`
+				`Proxy recursion limit of ${config.proxyRecursionMax} exceeded`
 			)
 		if (!searchParams.get(SearchParam.URL))
 			return await helpResponse(req, config, HttpStatus.BAD_REQUEST)
@@ -153,9 +152,9 @@ export function getProxy(
 					? parseRecursionHeader(res.value.headers) : 0
 				)
 			)
-			if (recursion > config.PROXY_RECURSION_MAX)
+			if (recursion > config.proxyRecursionMax)
 				return await helpResponse(req, config, HttpStatus.LOOP_DETECTED,
-					`Proxy recursion limit of ${config.PROXY_RECURSION_MAX} exceeded`
+					`Proxy recursion limit of ${config.proxyRecursionMax} exceeded`
 				)
 			// modify response
 			if (responses.length)
@@ -180,7 +179,7 @@ export function getProxy(
 						statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
 					},
 					doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined,
-					config.RUN_CUSTOM_MS, config.RUN_CUSTOM_BYTES, config.RUN_CUSTOM_UNSAFE,
+					config.runCustomMs, config.runCustomBytes, config.runCustomUnsafe,
 					error => console.error?.(consolePrefix + 'error:', error)
 				)
 			;(request ? request.headers : newResInit.headers as Headers)

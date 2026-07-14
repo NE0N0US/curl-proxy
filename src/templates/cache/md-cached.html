@@ -24,26 +24,19 @@
 		<div class="markdown-body"><div class="markdown-heading"><h1 class="heading-element">cURL Proxy</h1><a id="user-content-curl-proxy" class="anchor" aria-label="Permalink: cURL Proxy" href="#user-content-curl-proxy"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p><strong>cURL Proxy</strong> is an unauthenticated, non-caching, Node.js <strong>HTTP(S) proxy</strong> that supports batch requests and is <a href="#user-content-url-parameters">driven by URL query</a>. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through <em><a href="#user-content-typescript-declaration-of-resbodyjavascript">custom JavaScript logic</a></em>, which can chain requests and merge responses. <em>It also supports</em> retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and <em>bypasses CORS</em> response restrictions, useful for debugging and development. <sub><a href="#user-content-notes">Notes</a> · <a href="#user-content-examples">Examples</a></sub></p>
 <div class="markdown-heading"><h1 class="heading-element">Usage</h1><a id="user-content-usage" class="anchor" aria-label="Permalink: Usage" href="#user-content-usage"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<div class="highlight highlight-source-ini"><pre>http://localhost:2077/?<span class="pl-k">url</span>=&lt;url,multi&gt;
-  [&amp;fastest]
-  [&amp;<span class="pl-k">headers</span>=&lt;json_object&gt;]
-  [&amp;<span class="pl-k">delheaders</span>=&lt;json_array&gt;]
-  [&amp;<span class="pl-k">resheaders</span>=&lt;json_object&gt;]
-  [&amp;<span class="pl-k">delresheaders</span>=&lt;json_array&gt;]
-  [&amp;skipdefaults]
-  [&amp;<span class="pl-k">method</span>=&lt;http_method&gt;]
-  [&amp;<span class="pl-k">body</span>=&lt;body_text&gt;]
-  [&amp;<span class="pl-k">resbody</span>=&lt;action&gt;]
-  [&amp;<span class="pl-k">status</span>=&lt;status_code&gt;]
-  [&amp;<span class="pl-k">statustext</span>=&lt;status_message&gt;]
-  [&amp;<span class="pl-k">retry</span>=&lt;<span class="pl-k">limit</span>=0&gt;]
-  [&amp;<span class="pl-k">retryin</span>=&lt;<span class="pl-k">milliseconds</span>=0&gt;]
-  [&amp;<span class="pl-k">retryfactor</span>=&lt;<span class="pl-k">number</span>=1&gt;]
-  [&amp;<span class="pl-k">retrylimit</span>=&lt;<span class="pl-k">milliseconds</span>=Infinity&gt;]
-  [&amp;<span class="pl-k">timeout</span>=&lt;<span class="pl-k">milliseconds</span>=300000&gt;]
-  [&amp;<span class="pl-k">ttfb</span>=&lt;<span class="pl-k">milliseconds</span>=0&gt;]
-  [&amp;<span class="pl-k">throttle</span>=&lt;<span class="pl-k">kbps</span>=Infinity&gt;]
-  [&amp;<span class="pl-k">throttleup</span>=&lt;<span class="pl-k">kbps</span>=Infinity&gt;]</pre></div>
+<div class="markdown-heading"><h2 class="heading-element">Server</h2><a id="user-content-server" class="anchor" aria-label="Permalink: Server" href="#user-content-server"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<ul>
+<li>Public instance - <code>https://curl-proxy.vercel.app/?url=…</code>
+</li>
+<li>Local instance - <code>npm start</code>
+</li>
+<li>CLI instance - <code>npx -y @ne0n0us/curl-proxy</code>
+</li>
+</ul>
+<div class="markdown-heading"><h2 class="heading-element">Library</h2><a id="user-content-library" class="anchor" aria-label="Permalink: Library" href="#user-content-library"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="highlight highlight-source-js"><pre><span class="pl-k">import</span> <span class="pl-kos">{</span><span class="pl-s1">createProxy</span><span class="pl-kos">}</span> <span class="pl-k">from</span> <span class="pl-s">'@ne0n0us/curl-proxy'</span>
+<span class="pl-k">const</span> <span class="pl-s1">proxy</span> <span class="pl-c1">=</span> <span class="pl-en">createProxy</span><span class="pl-kos">(</span><span class="pl-s1">config</span><span class="pl-kos">)</span>
+<span class="pl-k">const</span> <span class="pl-s1">response</span> <span class="pl-c1">=</span> <span class="pl-k">await</span> <span class="pl-s1">proxy</span><span class="pl-kos">(</span><span class="pl-s1">request</span><span class="pl-kos">)</span></pre></div>
 <div class="markdown-heading"><h2 class="heading-element">URL Parameters</h2><a id="user-content-url-parameters" class="anchor" aria-label="Permalink: URL Parameters" href="#user-content-url-parameters"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
@@ -259,6 +252,12 @@
 </ul>
 <div class="markdown-heading"><h3 class="heading-element">Examples</h3><a id="user-content-examples" class="anchor" aria-label="Permalink: Examples" href="#user-content-examples"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Under construction</p>
+<div class="markdown-heading"><h2 class="heading-element">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#user-content-license"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p>Licensed under the Apache License, Version 2.0. See:</p>
+<ul>
+<li><a href="./LICENSE">LICENSE</a></li>
+<li><a href="./NOTICE">NOTICE</a></li>
+</ul>
 <p><a href="#user-content-curl-proxy">(Top)</a></p>
 </div>
 	</body>

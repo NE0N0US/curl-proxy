@@ -2,27 +2,16 @@
 **cURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes) · [Examples](#examples)</sub>
 
 # Usage
-```url
-http://localhost:2077/?url=<url,multi>
-  [&fastest]
-  [&headers=<json_object>]
-  [&delheaders=<json_array>]
-  [&resheaders=<json_object>]
-  [&delresheaders=<json_array>]
-  [&skipdefaults]
-  [&method=<http_method>]
-  [&body=<body_text>]
-  [&resbody=<action>]
-  [&status=<status_code>]
-  [&statustext=<status_message>]
-  [&retry=<limit=0>]
-  [&retryin=<milliseconds=0>]
-  [&retryfactor=<number=1>]
-  [&retrylimit=<milliseconds=Infinity>]
-  [&timeout=<milliseconds=300000>]
-  [&ttfb=<milliseconds=0>]
-  [&throttle=<kbps=Infinity>]
-  [&throttleup=<kbps=Infinity>]
+## Server
+- Public instance - `https://curl-proxy.vercel.app/?url=…`
+- Local instance - `npm start`
+- CLI instance - `npx -y @ne0n0us/curl-proxy`
+
+## Library
+```javascript
+import {createProxy} from '@ne0n0us/curl-proxy'
+const proxy = createProxy(config)
+const response = await proxy(request)
 ```
 
 ## URL Parameters

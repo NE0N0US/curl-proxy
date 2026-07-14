@@ -14,23 +14,24 @@
 		"url": "https://ne0n0us.github.io/"
 	},
 	"license": "Apache-2.0",
-	"version": "0.1.4",
+	"version": "0.2.2",
 	"engines": {
 		"node": ">=22.11.0"
 	},
 	"scripts": {
-		"start": "vercel dev --listen 0.0.0.0:2077",
-		"prepublishOnly": "tsup --format esm --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts"
+		"start": "vercel dev -Ll 0.0.0.0:2077",
+		"prepublishOnly": "tsup --format esm,cjs --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts && tsup --format esm --target es2024 --external ./index.js --clean false src/cli.ts"
 	},
 	"dependencies": {
 		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
 		"quickjs-emscripten-core": "^0.32.0",
-		"quickjs-emscripten-sync": "^1.11.0"
+		"quickjs-emscripten-sync": "^1.11.0",
+		"undici": "^7.28.0"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",
 		"tsup": "^8.5.1",
-		"vercel": "^55.0.0"
+		"vercel": "^56.1.0"
 	},
 	"publishConfig": {
 		"access": "public"
@@ -42,9 +43,12 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
+			"module-sync": "./dist/index.js",
+			"require": "./dist/index.cjs",
 			"default": "./dist/index.js"
 		}
 	},
+	"bin": "./dist/cli.js",
 	"files": [
 		"dist",
 		"NOTICE"
@@ -52,7 +56,8 @@
 	"peerDependencies": {
 		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
 		"quickjs-emscripten-core": "^0.32.0",
-		"quickjs-emscripten-sync": "^1.11.0"
+		"quickjs-emscripten-sync": "^1.11.0",
+		"undici": "^7.28.0"
 	},
 	"keywords": [
 		"node",
