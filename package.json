@@ -14,13 +14,14 @@
 		"url": "https://ne0n0us.github.io/"
 	},
 	"license": "Apache-2.0",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"engines": {
 		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"start": "vercel dev -Ll 0.0.0.0:2077",
-		"prepublishOnly": "tsup --format esm,cjs --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts && tsup --format esm --target es2024 --external ./index.js --clean false src/cli.ts"
+		"prepublishOnly": "tsup --format esm,cjs --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts && tsup --format esm --target es2024 --external ./index.js --clean false --tsconfig tsconfig.json src/cli.ts",
+		"buildSea": "npm run prepublishOnly && tsup -d bin --format cjs --target es2024 dist/cli.js && node src/sea/preprocess.js && node --build-sea bin/sea-config.json && node src/sea/postprocess.js"
 	},
 	"dependencies": {
 		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
@@ -39,6 +40,7 @@
 	"sideEffects": false,
 	"type": "module",
 	"types": "./dist/index.d.ts",
+	"main": "./dist/index.js",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",

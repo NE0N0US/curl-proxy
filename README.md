@@ -1,13 +1,13 @@
 # cURL Proxy
 **cURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes) · [Examples](#examples)</sub>
 
-# Usage
-## Server
-- Public instance - `https://curl-proxy.vercel.app/?url=…`
+# Usage [![](https://badgen.net/npm/node/@ne0n0us/curl-proxy?icon=nodedotjs)](https://nodejs.org/en/download)
+## Server [![](https://badgen.net/packagephobia/install/@ne0n0us/curl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=@ne0n0us/curl-proxy)
+- Public instance - `https://curl-proxy.vercel.app/?url=…` or [clone](https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/curl-proxy)
 - Local instance - `npm start`
 - CLI instance - `npx -y @ne0n0us/curl-proxy`
 
-## Library
+## Library [![](https://badgen.net/bundlephobia/minzip/@ne0n0us/curl-proxy?icon=npm)](https://bundlephobia.com/package/@ne0n0us/curl-proxy)
 ```javascript
 import {createProxy} from '@ne0n0us/curl-proxy'
 const proxy = createProxy(config)

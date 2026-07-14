@@ -31,7 +31,7 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			`\ncURL Proxy is an unauthenticated, non-caching, Node.js HTTP(S) proxy that supports batch requests and is driven by URL query. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through custom JavaScript logic, which can chain requests and merge responses. It also supports retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and bypasses CORS response restrictions, useful for debugging and development.` +
 			// server
 			`\n\nServer:` +
-			`\n- Public instance - https://curl-proxy.vercel.app/?url=…` +
+			`\n- Public instance - https://curl-proxy.vercel.app/?url=… or https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/curl-proxy` +
 			`\n- Local instance  - npm start` +
 			`\n- CLI instance    - npx -y @ne0n0us/curl-proxy` +
 			// library
