@@ -8,7 +8,7 @@ import {pipeline} from 'node:stream/promises'
 import {parseArgs} from 'node:util'
 
 // @ts-expect-error
-import {createProxy, type ProxyConfig} from './index.js'
+import {ENDPOINT_PROXY, ENDPOINT_PROXY_DEBUG, type ProxyConfig, createProxy, proxyDebugResponse} from './index.js'
 
 const {console} = globalThis
 // mute dependencies
@@ -89,13 +89,38 @@ async function serveThrough(
 	}
 }
 
+function matchesRoute(url: string, route: string) {
+	return url?.match(
+		new RegExp(`^${route.replace('/', '\\/')}(?:[\\?#].*)?$`)
+	)
+}
+
+function withRouting(url: string, routes: Record<string, (req: Request) => Promise<Response>>) {
+	for (const [route, handler] of Object.entries(routes))
+		if (matchesRoute(url, route))
+			return handler
+	return async (req: Request) => new Response(null, {
+		status: 404,
+		headers: {
+			'access-control-allow-origin': req.headers.get('origin') || '*',
+			'access-control-allow-headers': '*',
+		},
+	})
+}
+
 function serve(config: Partial<ProxyConfig> = {}, port = PORT_DEFAULT, hostname = HOSTNAME_DEFAULT) {
-	const proxy = createProxy(config, {})
+	const
+		proxy: (req: Request) => Promise<Response> = createProxy(config, {}),
+		debug = (req: Request) => proxyDebugResponse(req, config)
 	return http.createServer({
 		headersTimeout: config.globalTimeout || GLOBAL_TIMEOUT_DEFAULT,
 		requestTimeout: config.globalTimeout || GLOBAL_TIMEOUT_DEFAULT,
 		maxHeaderSize: 2 ** 16,
-	}, (msg, out) => serveThrough(msg, out, proxy))
+	}, (msg, out) => serveThrough(msg, out, withRouting(msg.url!, {
+		'/': proxy,
+		[ENDPOINT_PROXY]: proxy,
+		[ENDPOINT_PROXY_DEBUG]: debug,
+	})))
 		.listen(port, hostname)
 }
 
@@ -142,8 +167,13 @@ function cliHelp() {
 function main() {
 	try {
 		const {port, hostname, ...config} = cliConfig()
-		serve(config, port, hostname)
-		console.log(`Listening at http://${hostname ?? HOSTNAME_DEFAULT}:${port ?? PORT_DEFAULT}`)
+		try {
+			serve(config, port, hostname)
+			console.log(`Listening at http://${hostname ?? HOSTNAME_DEFAULT}:${port ?? PORT_DEFAULT}`)
+		}
+		catch (error) {
+			console.error(error)
+		}
 	}
 	catch {
 		console.log(cliHelp())

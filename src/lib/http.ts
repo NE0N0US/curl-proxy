@@ -7,6 +7,7 @@ export const PROTOCOL_DEFAULT = 'http'
 
 /** only utilized */
 export enum AcceptHeader {
+	JSON = 'application/json',
 	HTML = 'text/html',
 	ANY = '*/*',
 }
@@ -32,6 +33,8 @@ export const ACCEPT_ENCODING_HEADER_ALL = Object.freeze([
 
 export const TRANSFER_ENCODING_CHUNKED = 'chunked'
 
+export const AC_ALLOW_ORIGIN_DEFAULT = '*'
+
 export const AC_EXPOSE_HEADERS_SAFELIST = Object.freeze([
 	'cache-control',
 	'content-language',
@@ -56,8 +59,11 @@ export enum Header {
 	// dynamic
 	CONNECTION = 'connection',
 	HOST = 'host',
+	ORIGIN = 'origin',
+	AC_ALLOW_ORIGIN = 'access-control-allow-origin',
 	AC_EXPOSE_HEADERS = 'access-control-expose-headers',
 	SET_COOKIE = 'set-cookie',
+	X_ORIGINAL_PREFIX = 'x-original-',
 	X_PROXY_RESPONSES = 'x-proxy-responses',
 	X_PROXY_RECURSION = 'x-proxy-recursion',
 	// rest auth

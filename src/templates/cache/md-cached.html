@@ -43,10 +43,10 @@
 <div class="markdown-heading"><h2 class="heading-element">URL Parameters</h2><a id="user-content-url-parameters" class="anchor" aria-label="Permalink: URL Parameters" href="#user-content-url-parameters"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
-<code>url</code> - resource URL, <code>http</code> assumed, <em>required</em>, <em>repeatable</em> (max. <code>16</code>), first response used, other statuses in JSON <code>X-Proxy-Responses</code>
+<code>url</code> - resource URL, <code>http</code> assumed, <em>required</em>, <em>repeatable</em> (max. <code>16</code>), first response used, other statuses in comma-separated <code>X-Proxy-Responses</code>
 </li>
 <li>
-<code>fastest</code> - return first available response, abort others</li>
+<code>fastest</code> - return first available response and its index in <code>X-Proxy-Responses</code>, abort others</li>
 <li>
 <code>headers</code> - request headers to overwrite (<code>Host</code> is determined dynamically)</li>
 <li>
@@ -63,8 +63,12 @@
 ]</pre></div>
 </li>
 <li>
-<code>resheaders</code> - response headers to overwrite (<code>Access-Control-Expose-Headers</code> is set automatically), in addition to:
-<div class="highlight highlight-source-json"><pre>{<span class="pl-ent">"Access-Control-Allow-Origin"</span>: <span class="pl-s"><span class="pl-pds">"</span>*<span class="pl-pds">"</span></span>}</pre></div>
+<code>resheaders</code> - response headers to overwrite (<code>Access-Control-Allow-Origin</code> and <code>Access-Control-Expose-Headers</code> are set automatically), in addition to:
+<div class="highlight highlight-source-json"><pre>{
+  <span class="pl-ent">"Access-Control-Allow-Headers"</span>: <span class="pl-s"><span class="pl-pds">"</span>*<span class="pl-pds">"</span></span>,
+  <span class="pl-ent">"Cross-Origin-Resource-Policy"</span>: <span class="pl-s"><span class="pl-pds">"</span>cross-origin<span class="pl-pds">"</span></span>,
+  <span class="pl-ent">"Timing-Allow-Origin"</span>: <span class="pl-s"><span class="pl-pds">"</span>*<span class="pl-pds">"</span></span>
+}</pre></div>
 </li>
 <li>
 <code>delresheaders</code> - names of response headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
@@ -75,6 +79,8 @@
   <span class="pl-s"><span class="pl-pds">"</span>Access-Control-Allow-Credentials<span class="pl-pds">"</span></span>,
 ]</pre></div>
 </li>
+<li>
+<code>renresheaders</code> - rename response headers to <code>X-Original-*</code> before changes</li>
 <li>
 <code>skipdefaults</code> - do not apply default header changes, except <a href="#user-content-response-headers-safety">response safety behavior</a> and setting response <code>X-Proxy-Recursion</code> (max. <code>16</code>)</li>
 <li>

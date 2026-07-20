@@ -15,8 +15,8 @@ const response = await proxy(request)
 ```
 
 ## URL Parameters
-- `url` - resource URL, `http` assumed, *required*, *repeatable* (max. `16`), first response used, other statuses in JSON `X-Proxy-Responses`
-- `fastest` - return first available response, abort others
+- `url` - resource URL, `http` assumed, *required*, *repeatable* (max. `16`), first response used, other statuses in comma-separated `X-Proxy-Responses`
+- `fastest` - return first available response and its index in `X-Proxy-Responses`, abort others
 - `headers` - request headers to overwrite (`Host` is determined dynamically)
 - `delheaders` - names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
   ```jsonc
@@ -31,10 +31,13 @@ const response = await proxy(request)
     "Sec-CH-*", "Sec-Fetch-*",
   ]
   ```
-- `resheaders` - response headers to overwrite (`Access-Control-Expose-Headers` is set automatically), in addition to:
+- `resheaders` - response headers to overwrite (`Access-Control-Allow-Origin` and `Access-Control-Expose-Headers` are set automatically), in addition to:
   ```json
-  {"Access-Control-Allow-Origin": "*"}
-  ```
+  {
+    "Access-Control-Allow-Headers": "*",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Timing-Allow-Origin": "*"
+  }
 - `delresheaders` - names of response headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
   ```jsonc
   [
@@ -44,6 +47,7 @@ const response = await proxy(request)
     "Access-Control-Allow-Credentials",
   ]
    ```
+- `renresheaders` - rename response headers to `X-Original-*` before changes
 - `skipdefaults` - do not apply default header changes, except [response safety behavior](#response-headers-safety) and setting response `X-Proxy-Recursion` (max. `16`)
 - `method` - request method override
 - `body` - request body text

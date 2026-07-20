@@ -7,6 +7,7 @@ export enum SearchParam {
 	DEL_HEADERS = 'delheaders',
 	RES_HEADERS = 'resheaders',
 	DEL_RES_HEADERS = 'delresheaders',
+	REN_RES_HEADERS = 'renresheaders',
 	SKIP_DEFAULTS = 'skipdefaults',
 	METHOD = 'method',
 	BODY = 'body',

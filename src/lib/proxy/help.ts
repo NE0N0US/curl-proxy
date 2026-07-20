@@ -1,6 +1,6 @@
 import {ProxyConfig, ProxyConfigVercel} from '../types.ts'
 import {escapeHtml, fileText, formatStringArray, formatStringRecord, isArray, isRecord} from '../utils.ts'
-import {AcceptHeader, Header, HttpMethod, HttpStatus, AUTHORIZATION_BEARER, PROTOCOL_DEFAULT, formatHttpHeader, resolveAcceptHeader} from '../http.ts'
+import {AcceptHeader, Header, HttpMethod, HttpStatus, AC_ALLOW_ORIGIN_DEFAULT, AUTHORIZATION_BEARER, PROTOCOL_DEFAULT, formatHttpHeader, resolveAcceptHeader} from '../http.ts'
 
 import {SearchParam} from './params.ts'
 import {ResBodyParam} from './body.ts'
@@ -45,10 +45,12 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 				PROTOCOL_DEFAULT
 			} assumed, required, repeatable (max. ${
 				config.urlCountMax
-			}), first response used, other statuses in JSON ${
+			}), first response used, other statuses in comma-separated ${
 				formatHttpHeader(Header.X_PROXY_RESPONSES)
 			}` +
-			`\n* ${SearchParam.FASTEST.padEnd(width)} - return first available response, abort others` +
+			`\n* ${SearchParam.FASTEST.padEnd(width)} - return first available response and its index in ${
+				formatHttpHeader(Header.X_PROXY_RESPONSES)
+			}, abort others` +
 			// headers
 			`\n* ${
 				SearchParam.HEADERS.padEnd(width)
@@ -69,8 +71,10 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			`\n* ${
 				SearchParam.RES_HEADERS.padEnd(width)
 			} - response headers to overwrite (${
+				formatHttpHeader(Header.AC_ALLOW_ORIGIN)
+			} and ${
 				formatHttpHeader(Header.AC_EXPOSE_HEADERS)
-			} is set automatically)` +
+			} are set automatically)` +
 			(isRecord(SearchDefaults.RES_HEADERS) ? ', in addition to:' : '') +
 			(isRecord(SearchDefaults.RES_HEADERS) ? `\n  ${formatStringRecord(SearchDefaults.RES_HEADERS)}` : '') +
 			// delresheaders
@@ -80,11 +84,16 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? ', in addition to:' : '') +
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? `\n  ${formatStringArray(SearchDefaults.DEL_RES_HEADERS)}` : '') +
 			// other params
-			(`\n* ${
+			`\n* ${
+				SearchParam.REN_RES_HEADERS.padEnd(width)
+			} - rename response headers to ${
+				formatHttpHeader(Header.X_ORIGINAL_PREFIX)
+			}* before changes` +
+			`\n* ${
 				SearchParam.SKIP_DEFAULTS.padEnd(width)
 			} - do not apply default header changes, except response safety behavior and setting response ${
 				formatHttpHeader(Header.X_PROXY_RECURSION)
-			} (max. ${config.proxyRecursionMax})`) +
+			} (max. ${config.proxyRecursionMax})` +
 			`\n* ${SearchParam.METHOD.padEnd(width)} - request method override` +
 			`\n* ${SearchParam.BODY.padEnd(width)} - request body text` +
 			// resbody
@@ -165,6 +174,7 @@ export async function helpResponse(req: Request, config: ProxyConfigVercel, stat
 		status,
 		headers: {
 			...acceptHtml ? {[Header.CONTENT_TYPE]: AcceptHeader.HTML} : {},
+			[Header.AC_ALLOW_ORIGIN]: req.headers.get(Header.ORIGIN) || AC_ALLOW_ORIGIN_DEFAULT,
 			...SearchDefaults.RES_HEADERS,
 		},
 	})

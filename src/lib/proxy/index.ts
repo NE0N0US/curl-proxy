@@ -1,16 +1,21 @@
 import undici from 'undici'
 
-import {ProxyConfig, ProxyConfigVercel} from '../types.ts'
+import {ProxyConfig} from '../types.ts'
 import {checkAbortSignal} from '../utils.ts'
 import {AcceptEncodingHeader, Header, HttpMethod, HttpStatus, ACCEPT_ENCODING_HEADER_ALL, resolveAcceptHeader, resolveUrl, streamify} from '../http.ts'
 
+import {proxyDebugResponse, configWithFallbacks} from './config.ts'
 import {SearchParam, parseParams} from './params.ts'
 import {processReqHeaders, parseRecursionHeader, processResHeaders} from './headers.ts'
 import {ResBodyParam, encodeBody, throttleBody, trackBody, transformBody} from './body.ts'
 import {helpResponse} from './help.ts'
 import {processCustom} from './custom.ts'
 
-export {type ProxyConfig}
+export {type ProxyConfig, configWithFallbacks, proxyDebugResponse}
+
+export const ENDPOINT_PROXY = '/api/proxy'
+
+export const ENDPOINT_PROXY_DEBUG = '/api/curl-proxy-config'
 
 export function createProxy(
 	configInit?: Partial<ProxyConfig>,
@@ -20,18 +25,7 @@ export function createProxy(
 		error => consoleObj.error?.('[uncaught]', error)
 ) {
 	const
-		config: ProxyConfigVercel = {
-			globalTimeout: configInit?.globalTimeout || 300_000,
-			urlCountMax: configInit?.urlCountMax || Number.MAX_SAFE_INTEGER,
-			proxyRecursionMax: configInit?.proxyRecursionMax || Number.MAX_SAFE_INTEGER,
-			runCustomMs: configInit?.runCustomMs || Number.MAX_SAFE_INTEGER,
-			runCustomBytes: configInit?.runCustomBytes || Number.MAX_SAFE_INTEGER,
-			runCustomUnsafe: configInit?.runCustomUnsafe || false,
-			allowHelpHtml: (configInit as ProxyConfigVercel)?.allowHelpHtml || false,
-			githubApiMd: (configInit as ProxyConfigVercel)?.githubApiMd || '',
-			githubApiVer: (configInit as ProxyConfigVercel)?.githubApiVer || '',
-			githubApiToken: (configInit as ProxyConfigVercel)?.githubApiToken,
-		},
+		config = configWithFallbacks(configInit),
 		dispatcher = new undici.Agent({
 			connect: {timeout: config.globalTimeout},
 			headersTimeout: config.globalTimeout,
@@ -83,7 +77,8 @@ export function createProxy(
 		// get response(s)
 		let
 			responses: PromiseSettledResult<Response>[] = [],
-			res: Response
+			res: Response,
+			resIndex: number | undefined
 		if (params.get(SearchParam.FASTEST) === null) {
 			responses = await responsesPromise
 			if (responses[0].status === 'rejected')
@@ -93,10 +88,12 @@ export function createProxy(
 			responses.shift()
 		}
 		else {
-			res = await Promise.any(responsePromises)
+			[res, resIndex] = await Promise.any(responsePromises.map((promise, resIndex) =>
+				promise.then(res => [res, resIndex]) as Promise<[Response, number]>
+			))
 			requestAborters.forEach(aborter => aborter.abort())
 		}
-		return {res, responses}
+		return {res, resIndex, responses}
 	}
 
 	/** facade */
@@ -123,6 +120,7 @@ export function createProxy(
 					req.signal,
 					...timeout ? [AbortSignal.timeout(timeout)] : [],
 				]),
+				headers = new Headers(req.headers),
 				newReq = new Request(req, {
 					method,
 					body: ([HttpMethod.GET, HttpMethod.HEAD].includes(method as HttpMethod)
@@ -141,7 +139,7 @@ export function createProxy(
 			if (!attempt)
 				console.time?.(consolePrefix + 'fetch')
 			const
-				{res, responses} = await fetchMulti(newReq, searchParams),
+				{res, resIndex, responses} = await fetchMulti(newReq, searchParams),
 				resHeaders = new Headers(res.headers)
 			if (retry === attempt)
 				console.timeEnd?.(consolePrefix + 'fetch')
@@ -157,14 +155,14 @@ export function createProxy(
 					`Proxy recursion limit of ${config.proxyRecursionMax} exceeded`
 				)
 			// modify response
-			if (responses.length)
-				resHeaders.set(Header.X_PROXY_RESPONSES, JSON.stringify(
-					responses.map(result =>
-						result.status === 'fulfilled' ? result.value.status : null
-					)
-				))
+			if (resIndex !== undefined)
+				resHeaders.set(Header.X_PROXY_RESPONSES, resIndex?.toString())
+			else if (responses.length)
+				resHeaders.set(Header.X_PROXY_RESPONSES, responses.map(result =>
+					result.status === 'fulfilled' ? result.value.status : null
+				).join(','))
 			const
-				acceptEncoding = resolveAcceptHeader(req.headers.get(Header.ACCEPT_ENCODING),
+				acceptEncoding = resolveAcceptHeader(headers.get(Header.ACCEPT_ENCODING),
 					ACCEPT_ENCODING_HEADER_ALL, AcceptEncodingHeader.ANY),
 				contentEncoding = acceptEncoding === AcceptEncodingHeader.ANY
 					? AcceptEncodingHeader.DEFAULT : acceptEncoding,
@@ -174,7 +172,7 @@ export function createProxy(
 					),
 					{
 						body: doRunCustom ? res.clone().body : res.body,
-						headers: processResHeaders(resHeaders, searchParams, contentEncoding),
+						headers: processResHeaders(resHeaders, searchParams, contentEncoding, headers),
 						status: status || res.status,
 						statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
 					},

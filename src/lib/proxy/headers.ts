@@ -1,6 +1,6 @@
 import {StringRecord} from '../types.ts'
 import {isArray, isRecord, tryParse} from '../utils.ts'
-import {AcceptEncodingHeader, Header, AC_EXPOSE_HEADERS_SAFELIST, TRANSFER_ENCODING_CHUNKED, deleteHeadersWildcard, formatHttpHeader} from '../http.ts'
+import {AcceptEncodingHeader, Header, AC_ALLOW_ORIGIN_DEFAULT, AC_EXPOSE_HEADERS_SAFELIST, TRANSFER_ENCODING_CHUNKED, deleteHeadersWildcard, formatHttpHeader} from '../http.ts'
 
 import {SearchParam} from './params.ts'
 import {ResBodyParam} from './body.ts'
@@ -26,7 +26,9 @@ export const SearchDefaults = Object.freeze({
 		'Access-Control-Allow-Credentials',
 	]),
 	RES_HEADERS: Object.freeze({
-		'Access-Control-Allow-Origin': '*',
+		'Access-Control-Allow-Headers': '*',
+		'Cross-Origin-Resource-Policy': 'cross-origin',
+		'Timing-Allow-Origin': '*',
 	}),
 })
 
@@ -62,10 +64,10 @@ export function processReqHeaders(headers: Headers, params: URLSearchParams) {
 }
 
 /** `Connection` is deleted along with headers listed in it, body is chunked and length is unknown */
-export function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string) {
+export function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string, reqHeaders: Headers) {
 	const
 		skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null,
-		connection = headers.get(Header.CONNECTION)
+		originalHeaders = new Headers(headers)
 	let setContentEncoding = false
 	// safety behavior
 	if (headers.get(Header.CONTENT_ENCODING)) {
@@ -80,6 +82,17 @@ export function processResHeaders(headers: Headers, params: URLSearchParams, con
 		.includes(params.get(SearchParam.RES_BODY)?.toLowerCase() as ResBodyParam)
 	)
 		headers.delete(Header.CONTENT_LENGTH)
+	// rename headers
+	if (params.get(SearchParam.REN_RES_HEADERS) !== null) {
+		headers = new Headers([...originalHeaders.entries()]
+			.map(([name, value]) => [Header.X_ORIGINAL_PREFIX + name, value])
+		)
+		originalHeaders.getSetCookie().slice(1)
+			.forEach(value => headers.append(Header.X_ORIGINAL_PREFIX + Header.SET_COOKIE, value))
+	}
+	// allow origin
+	if (!skipDefaults)
+		headers.set(Header.AC_ALLOW_ORIGIN, reqHeaders.get(Header.ORIGIN) || AC_ALLOW_ORIGIN_DEFAULT)
 	// delete headers
 	if (!skipDefaults)
 		headers.set(Header.AC_EXPOSE_HEADERS, '')
@@ -88,8 +101,8 @@ export function processResHeaders(headers: Headers, params: URLSearchParams, con
 		...tryParse<string[]>(params.get(SearchParam.DEL_RES_HEADERS), isArray) ?? [],
 	]
 		?.forEach(name => deleteHeadersWildcard(headers, name))
-	if (connection && !headers.get(Header.CONNECTION))
-		connection.split(',').map(name => name.trim())
+	if (originalHeaders.get(Header.CONNECTION) && !headers.get(Header.CONNECTION))
+		originalHeaders.get(Header.CONNECTION)!.split(',').map(name => name.trim())
 			.forEach(name => deleteHeadersWildcard(headers, name))
 	if (setContentEncoding) {
 		headers.set(Header.CONTENT_ENCODING, contentEncoding)
@@ -108,7 +121,7 @@ export function processResHeaders(headers: Headers, params: URLSearchParams, con
 	if (!skipDefaults && !acExposeHeadersDeleted && !headers.has(Header.AC_EXPOSE_HEADERS))
 		headers.set(
 			Header.AC_EXPOSE_HEADERS,
-			[Header.AC_EXPOSE_HEADERS, ...headers.keys()]
+			[Header.AC_EXPOSE_HEADERS, Header.X_PROXY_RECURSION, ...headers.keys()]
 				.filter(key => !AC_EXPOSE_HEADERS_SAFELIST.includes(key.toLowerCase()))
 				.sort()
 				.map(formatHttpHeader)
