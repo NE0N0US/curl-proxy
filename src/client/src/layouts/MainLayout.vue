@@ -143,6 +143,10 @@ onMounted(() => {
 				dialog({component: AboutDialog})
 				break
 		}
+	const url = new URL(location.href)
+	url.searchParams.delete('curl')
+	url.searchParams.delete('open')
+	window.history.pushState({}, '', url)
 	setTimeout(() => touched$.value = false)
 })
 

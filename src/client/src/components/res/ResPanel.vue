@@ -140,6 +140,9 @@
 				<div v-else-if="req$.result.blob" class="doc-section">
 					No response body.
 				</div>
+				<div v-else class="doc-section">
+					Loading…
+				</div>
 			</q-tab-panel>
 			<q-tab-panel class="q-pa-none overflow-hidden" name="headers">
 				<kv-table
