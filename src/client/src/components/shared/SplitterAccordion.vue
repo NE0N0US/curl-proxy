@@ -84,6 +84,8 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 
+let timeoutLimits: number
+
 const
 	collapse$ = defineModel<null | 'start' | 'end'>({required: true}),
 
@@ -110,8 +112,9 @@ const
 
 	watcherLimits = watch(limits$, () => {
 		autosizing$.value = true
+		clearTimeout(timeoutLimits)
 		// NOTE: basic workaround
-		setTimeout(() => autosizing$.value = false, 300)
+		timeoutLimits = setTimeout(() => autosizing$.value = false, 300) as any
 	}),
 
 	watcherViewInit = watch([height$, heightEnd$, heightStart$], ([height, end, start]) =>

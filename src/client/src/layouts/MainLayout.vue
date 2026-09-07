@@ -160,10 +160,4 @@ function send(command?: 'repeat') {
 		req.fetching = true
 	}
 }
-
-/* TODO:
-1-res QJS runtime (w/console?)
-more cURL Proxy examples: throttled big file, cookie/set-cookie, response transformation
-*/
-
 </script>
