@@ -52,7 +52,7 @@ function download() {
 	const blob = req$.value.result?.blob
 	if (blob?.size) {
 		const exported = exportFile(
-			`artisan-response-${formatDate(Date.now(), 'YYYY-MM-DDTHH-mm-ss')}`,
+			`qurl-artisan-response-${formatDate(Date.now(), 'YYYY-MM-DDTHH-mm-ss')}`,
 			blob,
 			{mimeType: blob.type}
 		)

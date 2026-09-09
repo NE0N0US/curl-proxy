@@ -1,23 +1,23 @@
 {
   "repo_notes": [
     {
-      "content": "Generate documentation in the style of a concise technical encyclopedia, combining the readability and structure of Wikipedia with the depth of an engineer-facing knowledge base. Write for developers who understand HTTP and programming but are unfamiliar with this project.\n\nOrganize documentation around concepts, behavior, motivations, and system interactions rather than repository structure or individual source files. Source files may be referenced naturally inside explanations, but they should not define the structure of the documentation.\n\nBe concise. Prefer one precise paragraph over several similar ones. Avoid repeating introductions, summaries, feature lists, definitions, or architectural overviews across pages. Assume the reader has already read parent pages. Every page should introduce mostly new information.\n\nAvoid generic filler such as 'This page explains...', 'The system provides...', 'One important aspect...', or repetitive restatements of project goals. Prefer concrete explanations, rationale, examples, tradeoffs, and implementation insights.\n\nPrefer prose over diagrams. Only generate a diagram if a simple relationship genuinely cannot be explained clearly using text.\n\nTreat curl-proxy as a programmable HTTP(S) proxy whose behavior is almost entirely driven by URL query parameters.\n\nClearly distinguish the public HTTP API from internal implementation details. Never invent undocumented URL parameters, transformation modes, configuration options, or features based on implementation code. If behavior happens automatically inside the proxy, describe it as internal processing rather than a user-configurable feature.\n\nImportant design motivations:\n- URL query parameters are the primary configuration mechanism because many real-world environments only allow modifying a URL, such as hyperlinks, redirects, webhook URLs, RSS feeds, V2Ray subscriptions, embedded URLs, bookmarklets, browser extensions, or third-party integrations.\n- The proxy intentionally does not implement caching because persistent storage is impractical in a serverless architecture and would fundamentally change the project's stateless nature.\n- JavaScript response processing exists to make the proxy a programmable request/response pipeline capable of arbitrary transformations, request chaining, response merging, protocol adaptation, and lightweight middleware-like behavior.\n- Streaming is preferred throughout the system to minimize memory usage, improve scalability, and avoid serverless request and response size limitations.\n- Recursive request execution is intentional and enables complex processing pipelines useful for development, debugging, testing, and automation.\n- The `X-Proxy-Recursion` header is a distributed recursion and loop detection mechanism rather than merely a recursion counter for custom JavaScript. Every request processed by curl-proxy increments the header, including requests initiated from custom handlers. This guarantees finite execution of arbitrarily complex request orchestration while remaining independent of deployment topology. Because the mechanism is carried in an HTTP header, independent curl-proxy instances automatically cooperate and detect recursive request chains across different hosts without requiring shared state.\n- Default request header filtering removes browser-specific and origin-related headers so proxied requests behave like ordinary non-browser HTTP clients while bypassing common CORS restrictions.\n\nFavor explaining why the system behaves the way it does over describing individual implementation details."
+      "content": "Generate documentation in the style of a concise technical encyclopedia, combining the readability and structure of Wikipedia with the depth of an engineer-facing knowledge base. Write for developers who understand HTTP and programming but are unfamiliar with this project.\n\nOrganize documentation around concepts, behavior, motivations, and system interactions rather than repository structure or individual source files. Source files may be referenced naturally inside explanations, but they should not define the structure of the documentation.\n\nBe concise. Prefer one precise paragraph over several similar ones. Avoid repeating introductions, summaries, feature lists, definitions, or architectural overviews across pages. Assume the reader has already read parent pages. Every page should introduce mostly new information.\n\nAvoid generic filler such as 'This page explains...', 'The system provides...', 'One important aspect...', or repetitive restatements of project goals. Prefer concrete explanations, rationale, examples, tradeoffs, and implementation insights.\n\nPrefer prose over diagrams. Only generate a diagram if a simple relationship genuinely cannot be explained clearly using text.\n\nTreat qurl-proxy as a programmable HTTP(S) proxy whose behavior is almost entirely driven by URL query parameters.\n\nClearly distinguish the public HTTP API from internal implementation details. Never invent undocumented URL parameters, transformation modes, configuration options, or features based on implementation code. If behavior happens automatically inside the proxy, describe it as internal processing rather than a user-configurable feature.\n\nImportant design motivations:\n- URL query parameters are the primary configuration mechanism because many real-world environments only allow modifying a URL, such as hyperlinks, redirects, webhook URLs, RSS feeds, V2Ray subscriptions, embedded URLs, bookmarklets, browser extensions, or third-party integrations.\n- The proxy intentionally does not implement caching because persistent storage is impractical in a serverless architecture and would fundamentally change the project's stateless nature.\n- JavaScript response processing exists to make the proxy a programmable request/response pipeline capable of arbitrary transformations, request chaining, response merging, protocol adaptation, and lightweight middleware-like behavior.\n- Streaming is preferred throughout the system to minimize memory usage, improve scalability, and avoid serverless request and response size limitations.\n- Recursive request execution is intentional and enables complex processing pipelines useful for development, debugging, testing, and automation.\n- The `X-Proxy-Recursion` header is a distributed recursion and loop detection mechanism rather than merely a recursion counter for custom JavaScript. Every request processed by qurl-proxy increments the header, including requests initiated from custom handlers. This guarantees finite execution of arbitrarily complex request orchestration while remaining independent of deployment topology. Because the mechanism is carried in an HTTP header, independent qurl-proxy instances automatically cooperate and detect recursive request chains across different hosts without requiring shared state.\n- Default request header filtering removes browser-specific and origin-related headers so proxied requests behave like ordinary non-browser HTTP clients while bypassing common CORS restrictions.\n\nFavor explaining why the system behaves the way it does over describing individual implementation details."
     }
   ],
   "pages": [
     {
       "title": "Overview",
-      "purpose": "Introduces curl-proxy, its purpose, capabilities, architecture at a high level, and the main ideas behind the project.",
+      "purpose": "Introduces qurl-proxy, its purpose, capabilities, architecture at a high level, and the main ideas behind the project.",
       "page_notes": [
         {
-          "content": "Explain what makes curl-proxy different from an ordinary HTTP proxy. Introduce URL-driven configuration, request and response transformations, programmable processing, streaming, retries, batching, recursion, and stateless serverless deployment without going into implementation details. Mention typical audiences such as frontend developers, API developers, automation engineers, and debugging workflows. Mention URL Artisan as a browser-based HTTP client that provides a simplified Postman-like interface for sending and inspecting HTTP requests and exposes cURL Proxy parameters through a UI when proxy-level control is needed."
+          "content": "Explain what makes qurl-proxy different from an ordinary HTTP proxy. Introduce URL-driven configuration, request and response transformations, programmable processing, streaming, retries, batching, recursion, and stateless serverless deployment without going into implementation details. Mention typical audiences such as frontend developers, API developers, automation engineers, and debugging workflows. Mention qURL Artisan as a browser-based HTTP client that provides a simplified Postman-like interface for sending and inspecting HTTP requests and exposes qURL Proxy parameters through a UI when proxy-level control is needed."
         }
       ]
     },
     {
       "title": "Getting Started",
       "parent": "Overview",
-      "purpose": "Shows how to run curl-proxy, configure the environment, and perform the first requests.",
+      "purpose": "Shows how to run qurl-proxy, configure the environment, and perform the first requests.",
       "page_notes": [
         {
           "content": "Cover local development, Node.js requirements, Vercel development, environment variables only as needed, repository layout, running locally, making the first request, inspecting responses, and where readers should continue after becoming familiar with the basics."
@@ -35,18 +35,18 @@
       ]
     },
     {
-      "title": "URL Artisan",
+      "title": "qURL Artisan",
       "parent": "Overview",
-      "purpose": "Describes URL Artisan, the browser-based HTTP client for constructing, sending, and inspecting HTTP requests with optional cURL Proxy integration.",
+      "purpose": "Describes qURL Artisan, the browser-based HTTP client for constructing, sending, and inspecting HTTP requests with optional qURL Proxy integration.",
       "page_notes": [
         {
-          "content": "Describe URL Artisan as a browser-based HTTP client with a simplified Postman-like workflow and a polished UI/UX. It uses the browser's native Fetch API by default, allowing requests to be sent directly without cURL Proxy. When more control over requests or responses is required, it integrates with cURL Proxy and exposes the proxy's URL-driven parameters through a dedicated UI. Explain the relationship clearly: URL Artisan is the interactive client and request-building interface, while cURL Proxy performs the programmable HTTP proxying and transformations. Emphasize that the UI makes cURL Proxy functionality easier to discover and use without manually constructing complex proxy URLs."
+          "content": "Describe qURL Artisan as a browser-based HTTP client with a simplified Postman-like workflow and a polished UI/UX. It uses the browser's native Fetch API by default, allowing requests to be sent directly without qURL Proxy. When more control over requests or responses is required, it integrates with qURL Proxy and exposes the proxy's URL-driven parameters through a dedicated UI. Explain the relationship clearly: qURL Artisan is the interactive client and request-building interface, while qURL Proxy performs the programmable HTTP proxying and transformations. Emphasize that the UI makes qURL Proxy functionality easier to discover and use without manually constructing complex proxy URLs."
         }
       ]
     },
     {
       "title": "Architecture Overview",
-      "purpose": "Explains how curl-proxy processes requests from arrival to final response and how the major subsystems cooperate.",
+      "purpose": "Explains how qurl-proxy processes requests from arrival to final response and how the major subsystems cooperate.",
       "page_notes": [
         {
           "content": "Describe the system as a sequence of processing stages instead of repository modules. Explain how URL parameters progressively transform request behavior before the final response is returned. Mention the responsibilities of major components without turning the page into a file walkthrough."
@@ -69,7 +69,7 @@
       "purpose": "Explains how request and response headers are modified and protected.",
       "page_notes": [
         {
-          "content": "Describe default header removal, wildcard deletion, browser-header stripping, Connection header processing, CORS behavior, response safety rules, Content-Encoding handling, automatic Access-Control-Expose-Headers generation, and recursion tracking. Explain that recompression and Content-Encoding adjustments are internal HTTP processing performed automatically when required and are not user-selectable `resbody` transformations. Explain that `X-Proxy-Recursion` is a distributed loop-detection mechanism rather than merely a recursion counter. Every request handled by curl-proxy increments the header, including requests generated by custom handlers, allowing arbitrary request orchestration to terminate safely. Because the mechanism is propagated through HTTP headers instead of local process state, multiple independent curl-proxy instances automatically cooperate and detect recursive request chains across different hosts."
+          "content": "Describe default header removal, wildcard deletion, browser-header stripping, Connection header processing, CORS behavior, response safety rules, Content-Encoding handling, automatic Access-Control-Expose-Headers generation, and recursion tracking. Explain that recompression and Content-Encoding adjustments are internal HTTP processing performed automatically when required and are not user-selectable `resbody` transformations. Explain that `X-Proxy-Recursion` is a distributed loop-detection mechanism rather than merely a recursion counter. Every request handled by qurl-proxy increments the header, including requests generated by custom handlers, allowing arbitrary request orchestration to terminate safely. Because the mechanism is propagated through HTTP headers instead of local process state, multiple independent qurl-proxy instances automatically cooperate and detect recursive request chains across different hosts."
         }
       ]
     },
@@ -104,10 +104,10 @@
     },
     {
       "title": "Security and Limitations",
-      "purpose": "Explains the security model, intentional restrictions, and operational boundaries of curl-proxy.",
+      "purpose": "Explains the security model, intentional restrictions, and operational boundaries of qurl-proxy.",
       "page_notes": [
         {
-          "content": "Discuss the implications of an unauthenticated proxy, browser-header filtering, CORS bypass, sandbox isolation, recursion limits, batching limits, execution limits, timeout limits, denial-of-service considerations, statelessness, absence of authentication and caching, and situations where curl-proxy is not an appropriate solution."
+          "content": "Discuss the implications of an unauthenticated proxy, browser-header filtering, CORS bypass, sandbox isolation, recursion limits, batching limits, execution limits, timeout limits, denial-of-service considerations, statelessness, absence of authentication and caching, and situations where qurl-proxy is not an appropriate solution."
         }
       ]
     },
@@ -123,7 +123,7 @@
     {
       "title": "Real-world Use Cases",
       "parent": "Design Philosophy",
-      "purpose": "Shows realistic situations where curl-proxy provides practical value.",
+      "purpose": "Shows realistic situations where qurl-proxy provides practical value.",
       "page_notes": [
         {
           "content": "Generate practical scenarios instead of artificial examples. Include frontend development with CORS restrictions; debugging third-party APIs; modifying request or response headers; temporary API adaptation without writing backend code; combining multiple APIs into one response; request chaining; webhook testing; injecting authentication where only URLs are configurable; browser userscripts; bookmarklets; browser extensions; mobile app debugging; local development; reverse-engineering web APIs; rapid prototyping; lightweight automation; monitoring; response normalization between incompatible services; testing retry behavior; bandwidth simulation; response mocking; educational HTTP experiments; and other situations where changing only a URL is significantly easier than deploying custom middleware."
@@ -133,10 +133,10 @@
     {
       "title": "Comparison with Traditional Proxies",
       "parent": "Design Philosophy",
-      "purpose": "Compares curl-proxy with conventional forward and reverse proxies.",
+      "purpose": "Compares qurl-proxy with conventional forward and reverse proxies.",
       "page_notes": [
         {
-          "content": "Compare configuration model, programmability, deployment model, statefulness, caching, authentication, request transformation, response transformation, scripting, middleware capabilities, streaming, batching, recursion, intended use cases, operational complexity, and typical deployment scenarios. Emphasize that curl-proxy complements rather than replaces production reverse proxies."
+          "content": "Compare configuration model, programmability, deployment model, statefulness, caching, authentication, request transformation, response transformation, scripting, middleware capabilities, streaming, batching, recursion, intended use cases, operational complexity, and typical deployment scenarios. Emphasize that qurl-proxy complements rather than replaces production reverse proxies."
         }
       ]
     },

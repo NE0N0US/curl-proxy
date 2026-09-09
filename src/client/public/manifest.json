@@ -1,6 +1,6 @@
 {
-	"name": "URL Artisan",
-	"description": "Browser-based HTTP client that uses native fetch by default and integrates with cURL Proxy when you need more control over requests and responses.",
+	"name": "qURL Artisan",
+	"description": "Browser-based HTTP client that uses native fetch by default and integrates with qURL Proxy when you need more control over requests and responses.",
 	"icons": [
 		{
 			"src": "./favicon.svg",
@@ -35,7 +35,7 @@
 		},
 		{
 			"name": "About",
-			"description": "About URL Artisan",
+			"description": "About qURL Artisan",
 			"icons": [
 				{
 					"src": "./favicon.svg",

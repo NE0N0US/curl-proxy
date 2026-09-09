@@ -15,7 +15,7 @@ export {type ProxyConfig, configWithFallbacks, proxyDebugResponse}
 
 export const ENDPOINT_PROXY = '/api/proxy'
 
-export const ENDPOINT_PROXY_DEBUG = '/api/curl-proxy-config'
+export const ENDPOINT_PROXY_DEBUG = '/api/qurl-proxy-config'
 
 export function createProxy(
 	configInit?: Partial<ProxyConfig>,

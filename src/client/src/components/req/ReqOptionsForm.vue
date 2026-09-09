@@ -34,27 +34,27 @@
 		<menu-item
 			class="q-pa-toolbar"
 			icon="mdi-cog-transfer-outline"
-			label="Extract cURL Proxy options from URL"
-			caption="Parse cURL Proxy URL into original URL and options"
+			label="Extract qURL Proxy options from URL"
+			caption="Parse qURL Proxy URL into original URL and options"
 			:disable="disableExtract"
-			@click="$emit('extractCurlProxy')"
+			@click="$emit('extractQurlProxy')"
 		/>
 	</q-list>
 	<q-input
 		class="list-item-input q-pa-toolbar"
 		spellcheck="false" autocomplete="off"
-		label="cURL Proxy Server"
-		:shadow-text="options$.curlProxy.server.value ? ' ' : 'https://curl-proxy.vercel.app/'"
-		v-model="options$.curlProxy.server.value"
-		:disable="!!(options$.curlProxy.server.value && options$.curlProxy.server.disable)"
+		label="qURL Proxy Server"
+		:shadow-text="options$.qurlProxy.server.value ? ' ' : 'https://qurl-proxy.vercel.app/'"
+		v-model="options$.qurlProxy.server.value"
+		:disable="!!(options$.qurlProxy.server.value && options$.qurlProxy.server.disable)"
 		borderless hide-bottom-space dense
 		input-class="artisan-mono"
 	>
 		<template #prepend>
 			<a
-				class="curl-proxy-config"
-				:inert="options$.curlProxy.server.disable"
-				:href="curlProxyConfig$"
+				class="qurl-proxy-config"
+				:inert="options$.qurlProxy.server.disable"
+				:href="qurlProxyConfig$"
 				target="_blank"
 				@click.passive="$event.stopPropagation()"
 			>
@@ -63,8 +63,8 @@
 		</template>
 		<template #after>
 			<q-checkbox
-				v-if="options$.curlProxy.server.value"
-				v-model="options$.curlProxy.server.disable"
+				v-if="options$.qurlProxy.server.value"
+				v-model="options$.qurlProxy.server.disable"
 				:true-value="false" :false-value="true"
 				color="text"
 			/>
@@ -72,7 +72,7 @@
 	</q-input>
 	<q-list class="non-selectable">
 		<q-expansion-item
-			:model-value="!!options$.curlProxy.server.value && !options$.curlProxy.server.disable"
+			:model-value="!!options$.qurlProxy.server.value && !options$.qurlProxy.server.disable"
 			header-class="hidden"
 		>
 			<q-separator/>
@@ -80,10 +80,10 @@
 				class="list-item-input q-pa-toolbar"
 				spellcheck="false" autocomplete="off"
 				label="Extra URLs"
-				:shadow-text="options$.curlProxy.urls.value ? ' ' : 'Newline-separated URLs (full, protocol-less, or relative)'"
+				:shadow-text="options$.qurlProxy.urls.value ? ' ' : 'Newline-separated URLs (full, protocol-less, or relative)'"
 				autogrow
-				v-model="options$.curlProxy.urls.value"
-				:disable="!!(options$.curlProxy.urls.value && options$.curlProxy.urls.disable)"
+				v-model="options$.qurlProxy.urls.value"
+				:disable="!!(options$.qurlProxy.urls.value && options$.qurlProxy.urls.disable)"
 				borderless hide-bottom-space dense
 				input-class="artisan-mono"
 			>
@@ -92,8 +92,8 @@
 				</template>
 				<template #after>
 					<q-checkbox
-						v-if="options$.curlProxy.urls.value"
-						v-model="options$.curlProxy.urls.disable"
+						v-if="options$.qurlProxy.urls.value"
+						v-model="options$.qurlProxy.urls.disable"
 						:true-value="false" :false-value="true"
 						color="text"
 					/>
@@ -104,8 +104,8 @@
 					icon="mdi-lightning-bolt"
 					label="Fastest"
 					:caption="'Return first available response and its index in \x22X-Proxy-Responses\x22, abort others'"
-					:disable="!options$.curlProxy.urls.value || options$.curlProxy.urls.disable"
-					v-model="options$.curlProxy.fastest"
+					:disable="!options$.qurlProxy.urls.value || options$.qurlProxy.urls.disable"
+					v-model="options$.qurlProxy.fastest"
 				/>
 			</q-list>
 			<q-separator/>
@@ -118,11 +118,11 @@
 							spellcheck="false" autocomplete="off"
 							:inputmode="digits ? 'numeric' : undefined"
 							:label="label"
-							:shadow-text="(<any>options$.curlProxy)[name] ? ' ' : caption"
+							:shadow-text="(<any>options$.qurlProxy)[name] ? ' ' : caption"
 							:mask="digits ? numericMask(digits) : undefined"
 							reverse-fill-mask
 							unmasked-value
-							v-model="(<any>options$.curlProxy)[name]"
+							v-model="(<any>options$.qurlProxy)[name]"
 							:maxlength="digits ? numericMask(digits).length : undefined"
 							borderless hide-bottom-space dense
 						>
@@ -136,7 +136,7 @@
 							class="list-item-input"
 							:offset-x="!index ? 6.5 : 12.5"
 							:placeholder="caption"
-							v-model="options$.curlProxy.method"
+							v-model="options$.qurlProxy.method"
 						/>
 						<suggested-input
 							v-else
@@ -151,7 +151,7 @@
 							:mask="digits ? numericMask(digits) : undefined"
 							reverse-fill-mask
 							unmasked-value
-							v-model="(<any>options$.curlProxy)[name]"
+							v-model="(<any>options$.qurlProxy)[name]"
 							:maxlength="digits ? numericMask(digits).length : undefined"
 						/>
 					</template>
@@ -172,13 +172,13 @@
 					icon="mdi-rename-outline"
 					label="Rename Response Headers"
 					:caption="'To \x22X-Original-*\x22 before changes'"
-					v-model="options$.curlProxy.renResHeaders"
+					v-model="options$.qurlProxy.renResHeaders"
 				/>
 				<req-options-form-toggle
 					icon="mdi-skip-forward"
 					label="Skip Defaults"
 					caption="Do not apply default header changes, except response safety behavior"
-					v-model="options$.curlProxy.skipDefaults"
+					v-model="options$.qurlProxy.skipDefaults"
 				/>
 			</q-list>
 			<q-separator/>
@@ -187,14 +187,14 @@
 				mobile-arrows
 				align="left" narrow-indicator
 				inline-label no-caps
-				v-model="options$.curlProxy.tab"
+				v-model="options$.qurlProxy.tab"
 			>
 				<q-tab
 					icon="mdi-table"
 					label="Headers"
-					:alert="!!(options$.curlProxy.headersAll.headers!.textMode
-						|| options$.curlProxy.headersAll.headers!.rows.length)"
-					:alert-icon="options$.curlProxy.headersAll.headers!.textMode
+					:alert="!!(options$.qurlProxy.headersAll.headers!.textMode
+						|| options$.qurlProxy.headersAll.headers!.rows.length)"
+					:alert-icon="options$.qurlProxy.headersAll.headers!.textMode
 						? 'mdi-content-save-edit-outline' : undefined"
 					name="headers"
 					:ripple="ripple$"
@@ -202,9 +202,9 @@
 				<q-tab
 					icon="mdi-table-minus"
 					label="Delete Headers"
-					:alert="!!(options$.curlProxy.headersAll.delHeaders!.textMode
-						|| options$.curlProxy.headersAll.delHeaders!.rows.length)"
-					:alert-icon="options$.curlProxy.headersAll.delHeaders!.textMode
+					:alert="!!(options$.qurlProxy.headersAll.delHeaders!.textMode
+						|| options$.qurlProxy.headersAll.delHeaders!.rows.length)"
+					:alert-icon="options$.qurlProxy.headersAll.delHeaders!.textMode
 						? 'mdi-content-save-edit-outline' : undefined"
 					name="delHeaders"
 					:ripple="ripple$"
@@ -212,9 +212,9 @@
 				<q-tab
 					icon="mdi-table"
 					label="Response Headers"
-					:alert="!!(options$.curlProxy.headersAll.resHeaders!.textMode
-						|| options$.curlProxy.headersAll.resHeaders!.rows.length)"
-					:alert-icon="options$.curlProxy.headersAll.resHeaders!.textMode
+					:alert="!!(options$.qurlProxy.headersAll.resHeaders!.textMode
+						|| options$.qurlProxy.headersAll.resHeaders!.rows.length)"
+					:alert-icon="options$.qurlProxy.headersAll.resHeaders!.textMode
 						? 'mdi-content-save-edit-outline' : undefined"
 					name="resHeaders"
 					:ripple="ripple$"
@@ -222,9 +222,9 @@
 				<q-tab
 					icon="mdi-table-minus"
 					label="Delete Response Headers"
-					:alert="!!(options$.curlProxy.headersAll.delResHeaders!.textMode
-						|| options$.curlProxy.headersAll.delResHeaders!.rows.length)"
-					:alert-icon="options$.curlProxy.headersAll.delResHeaders!.textMode
+					:alert="!!(options$.qurlProxy.headersAll.delResHeaders!.textMode
+						|| options$.qurlProxy.headersAll.delResHeaders!.rows.length)"
+					:alert-icon="options$.qurlProxy.headersAll.delResHeaders!.textMode
 						? 'mdi-content-save-edit-outline' : undefined"
 					name="delResHeaders"
 					:ripple="ripple$"
@@ -232,8 +232,8 @@
 				<q-tab
 					icon="mdi-text-box-outline"
 					label="Body"
-					:alert="options$.curlProxy.body.type !== ReqBodyType.NONE"
-					:alert-icon="options$.curlProxy.body.formTextMode
+					:alert="options$.qurlProxy.body.type !== ReqBodyType.NONE"
+					:alert-icon="options$.qurlProxy.body.formTextMode
 						? 'mdi-content-save-edit-outline' : undefined"
 					name="body"
 					:ripple="ripple$"
@@ -241,9 +241,9 @@
 				<q-tab
 					icon="mdi-text-box-edit-outline"
 					label="Response Body"
-					:alert="options$.curlProxy.resBody.startsWith(ResBodyType.JAVASCRIPT + ':')
-						? (options$.curlProxy.resBody.length > ResBodyType.JAVASCRIPT.length + 1)
-						: !!options$.curlProxy.resBody"
+					:alert="options$.qurlProxy.resBody.startsWith(ResBodyType.JAVASCRIPT + ':')
+						? (options$.qurlProxy.resBody.length > ResBodyType.JAVASCRIPT.length + 1)
+						: !!options$.qurlProxy.resBody"
 					name="resBody"
 					:ripple="ripple$"
 				/>
@@ -253,19 +253,19 @@
 				<div
 					class="row no-wrap"
 					:style="{
-						width: (Object.keys(options$.curlProxy.headersAll).length + 2) * 100 + '%',
+						width: (Object.keys(options$.qurlProxy.headersAll).length + 2) * 100 + '%',
 						'max-height': (tableHeight - 49) + 'px',
 					}"
 				>
 					<kv-table
-						v-for="table, _key, index of options$.curlProxy.headersAll" :key="table.name"
+						v-for="table, _key, index of options$.qurlProxy.headersAll" :key="table.name"
 						class="full-width relative-position overflow-auto"
-						:class="{invisible: options$.curlProxy.tab !== table.name}"
+						:class="{invisible: options$.qurlProxy.tab !== table.name}"
 						:style="{
-							'max-width': 100 / (Object.keys(options$.curlProxy.headersAll).length + 2) + '%',
-							right: index * 100 / (Object.keys(options$.curlProxy.headersAll).length + 2) + '%',
+							'max-width': 100 / (Object.keys(options$.qurlProxy.headersAll).length + 2) + '%',
+							right: index * 100 / (Object.keys(options$.qurlProxy.headersAll).length + 2) + '%',
 						}"
-						:inert="options$.curlProxy.tab !== table.name"
+						:inert="options$.qurlProxy.tab !== table.name"
 						:hide-columns="table.deleteMode ? 'value' : undefined"
 						:table-height="tableHeight - 49"
 						v-model:text-mode="table.textMode"
@@ -275,32 +275,32 @@
 					/>
 					<req-body-form
 						class="full-width relative-position overflow-auto"
-						:class="{invisible: options$.curlProxy.tab !== 'body'}"
+						:class="{invisible: options$.qurlProxy.tab !== 'body'}"
 						:style="{
-							'max-width': 100 / (Object.keys(options$.curlProxy.headersAll).length + 2) + '%',
-							right: Object.keys(options$.curlProxy.headersAll).length * 100
-								/ (Object.keys(options$.curlProxy.headersAll).length + 2) + '%',
+							'max-width': 100 / (Object.keys(options$.qurlProxy.headersAll).length + 2) + '%',
+							right: Object.keys(options$.qurlProxy.headersAll).length * 100
+								/ (Object.keys(options$.qurlProxy.headersAll).length + 2) + '%',
 						}"
-						:inert="options$.curlProxy.tab !== 'body'"
+						:inert="options$.qurlProxy.tab !== 'body'"
 						:form-table-height="tableHeight - 98"
-						v-model:type="options$.curlProxy.body.type"
-						v-model:form-text-mode="options$.curlProxy.body.formTextMode"
-						v-model:form-text-value="options$.curlProxy.body.formTextValue"
-						v-model:form-pagination="options$.curlProxy.body.formPagination"
-						v-model:file-accept="options$.curlProxy.body.fileAccept"
-						v-model:text-lang="options$.curlProxy.body.textLang"
-						v-model="options$.curlProxy.body.value"
+						v-model:type="options$.qurlProxy.body.type"
+						v-model:form-text-mode="options$.qurlProxy.body.formTextMode"
+						v-model:form-text-value="options$.qurlProxy.body.formTextValue"
+						v-model:form-pagination="options$.qurlProxy.body.formPagination"
+						v-model:file-accept="options$.qurlProxy.body.fileAccept"
+						v-model:text-lang="options$.qurlProxy.body.textLang"
+						v-model="options$.qurlProxy.body.value"
 					/>
 					<res-body-form
 						class="full-width relative-position overflow-auto"
-						:class="{invisible: options$.curlProxy.tab !== 'resBody'}"
+						:class="{invisible: options$.qurlProxy.tab !== 'resBody'}"
 						:style="{
-							'max-width': 100 / (Object.keys(options$.curlProxy.headersAll).length + 2) + '%',
-							right: (Object.keys(options$.curlProxy.headersAll).length + 1) * 100
-								/ (Object.keys(options$.curlProxy.headersAll).length + 2) + '%',
+							'max-width': 100 / (Object.keys(options$.qurlProxy.headersAll).length + 2) + '%',
+							right: (Object.keys(options$.qurlProxy.headersAll).length + 1) * 100
+								/ (Object.keys(options$.qurlProxy.headersAll).length + 2) + '%',
 						}"
-						:inert="options$.curlProxy.tab !== 'resBody'"
-						v-model="options$.curlProxy.resBody"
+						:inert="options$.qurlProxy.tab !== 'resBody'"
+						v-model="options$.qurlProxy.resBody"
 					/>
 				</div>
 			</div>
@@ -319,7 +319,7 @@
 	}
 }
 
-.curl-proxy-config {
+.qurl-proxy-config {
 	pointer-events: initial;
 
 	&:focus-visible {
@@ -386,22 +386,22 @@ const
 	}>(),
 
 	$emits = defineEmits<{
-		extractCurlProxy: [],
+		extractQurlProxy: [],
 	}>(),
 
 	options$ = defineModel<ReqOptions>({required: true}),
 
-	curlProxyConfig$ = computed(() => {
-		const {server} = options$.value.curlProxy
+	qurlProxyConfig$ = computed(() => {
+		const {server} = options$.value.qurlProxy
 		if (server.disable || !server.value)
 			return undefined
 		const url = AppService.resolveUrl(server.value)
-		return AppService.isValidUrl(url) ? AppService.resolveUrl('/api/curl-proxy-config', url) : undefined
+		return AppService.isValidUrl(url) ? AppService.resolveUrl('/api/qurl-proxy-config', url) : undefined
 	}),
 
 	retriesPreview$ = computed(() => {
 		const
-			{retry, retryIn, retryFactor, retryLimit} = options$.value.curlProxy,
+			{retry, retryIn, retryFactor, retryLimit} = options$.value.qurlProxy,
 			retries = +(retry || 0),
 			interval = +(retryIn || 0),
 			backoffMultiplier = +(retryFactor || 1),

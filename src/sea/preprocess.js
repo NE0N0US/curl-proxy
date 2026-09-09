@@ -12,6 +12,6 @@ const filename = path.join(process.cwd(), CJS)
 
 fs.writeFileSync(filename, fs.readFileSync(filename).toString().replace(
 	// package.json: dependencies
-	/require\("(@jitl\/quickjs-wasmfile-release-sync|quickjs-emscripten-core|quickjs-emscripten-sync|undici)"\)/g,
+	/require\("(@jitl\/quickjs-wasmfile-release-sync|jsoncrush|quickjs-emscripten-core|quickjs-emscripten-sync|undici)"\)/g,
 	'require("module").createRequire(__filename)("$1")'
 ))

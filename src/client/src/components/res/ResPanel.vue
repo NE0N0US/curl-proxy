@@ -7,7 +7,7 @@
 		Error getting response. This may be due to an invalid URL, credentials in the URL, browser restrictions, or a network error.
 	</div>
 	<div>
-		Try using <a href="/" target="_blank" translate="no">cURL Proxy</a> to bypass browser restrictions, or check your network connection.
+		Try using <a href="/" target="_blank" translate="no">qURL Proxy</a> to bypass browser restrictions, or check your network connection.
 	</div>
 	<div>
 		Newer Chrome versions may <a href="https://developer.chrome.com/blog/local-network-access" target="_blank">block LAN requests</a>. Set <a href="chrome://flags/#local-network-access-check" target="_blank">chrome://flags/#local-network-access-check</a> to Disabled to fix this.

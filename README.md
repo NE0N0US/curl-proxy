@@ -1,15 +1,15 @@
-# cURL Proxy [![& URL Artisan](https://badgen.net/static/client/URL%20Artisan?icon=chrome)](/url-artisan?open=about)
-**cURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes-) · [Examples](/url-artisan?open=examples)</sub>
+# qURL Proxy [![& qURL Artisan](https://badgen.net/static/client/qURL%20Artisan?icon=chrome)](/qurl-artisan?open=about)
+**qURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes-) · [Examples](/qurl-artisan?open=examples)</sub>
 
-# Usage [![](https://badgen.net/npm/node/@ne0n0us/curl-proxy?icon=nodedotjs)](https://nodejs.org/en/download)
-## Server [![](https://badgen.net/packagephobia/install/@ne0n0us/curl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=@ne0n0us/curl-proxy)
-- Public instance - `https://curl-proxy.vercel.app/?url=…` or [clone](https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/curl-proxy)
+# Usage [![](https://badgen.net/npm/node/qurl-proxy?icon=nodedotjs)](https://nodejs.org/en/download)
+## Server [![](https://badgen.net/packagephobia/install/qurl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=qurl-proxy)
+- Public instance - `https://qurl-proxy.vercel.app/?url=…` or [clone](https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/qurl-proxy)
 - Local instance - `npm start`
-- CLI instance (no client) - `npx -y @ne0n0us/curl-proxy`
+- CLI instance (no client) - `npx -y qurl-proxy`
 
-## Library [![](https://badgen.net/packagephobia/publish/@ne0n0us/curl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=@ne0n0us/curl-proxy)
+## Library [![](https://badgen.net/packagephobia/publish/qurl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=qurl-proxy)
 ```javascript
-import {createProxy} from '@ne0n0us/curl-proxy'
+import {createProxy} from 'qurl-proxy'
 const proxy = createProxy(config)
 const response = await proxy(request)
 ```
@@ -133,7 +133,7 @@ type CustomResult =
   | null                        // remove response body
 ```
 
-## Notes [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/NE0N0US/curl-proxy)
+## Notes [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/NE0N0US/qurl-proxy)
 - Keep entire URL under deployment platform limit, [14 KB for Vercel](https://vercel.com/docs/errors/url_too_long)
 - [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`)
 - `resbody` custom handlers support [most of ES2025](https://test262.fyi/#|qjs), [crypto](https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto) object and following Web APIs:
@@ -152,9 +152,9 @@ type CustomResult =
   - [DecompressionStream](https://developer.mozilla.org/docs/Web/API/DecompressionStream)
   - [CompressionStream](https://developer.mozilla.org/docs/Web/API/CompressionStream)
 
-## License [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FNE0N0US%2Fcurl-proxy.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FNE0N0US%2Fcurl-proxy?ref=badge_shield&issueType=license)
+## License [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FNE0N0US%2Fqurl-proxy.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FNE0N0US%2Fqurl-proxy?ref=badge_shield&issueType=license)
 Licensed under the Apache License, Version 2.0. See:
 - [LICENSE](./LICENSE)
 - [NOTICE](./NOTICE)
 
-[(Top)](#curl-proxy-)
+[(Top)](#qurl-proxy-)

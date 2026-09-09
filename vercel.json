@@ -13,9 +13,9 @@
 			"destination": "/api/proxy"
 		},
 		{
-			"source": "/url-artisan/(.*)",
-			"destination": "/dist/url-artisan"
+			"source": "/qurl-artisan/(.*)",
+			"destination": "/src/client/dist/qurl-artisan"
 		}
 	],
-	"outputDirectory": "dist"
+	"outputDirectory": "src/client/dist"
 }

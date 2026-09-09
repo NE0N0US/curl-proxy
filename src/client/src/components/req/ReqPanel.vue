@@ -62,7 +62,7 @@
 					label="Options"
 					:alert="!!(req$.options.includeCredentials ||
 						req$.options.integrityHashes.value && !req$.options.integrityHashes.disable ||
-						req$.options.curlProxy.server.value && !req$.options.curlProxy.server.disable)"
+						req$.options.qurlProxy.server.value && !req$.options.qurlProxy.server.disable)"
 					name="options"
 					:ripple="ripple$"
 				/>
@@ -110,7 +110,7 @@
 							:disable-extract="disableExtract$"
 							:table-height="reqTabHeight$"
 							v-model="req$.options"
-							@extract-curl-proxy="extractCurlProxy()"
+							@extract-qurl-proxy="extractQurlProxy()"
 						/>
 					</q-tab-panel>
 				</q-tab-panels>
@@ -177,13 +177,13 @@ function pasteCurl(event: ClipboardEvent) {
 	}
 }
 
-function extractCurlProxy() {
+function extractQurlProxy() {
 	try {
-		ReqService.extractCurlProxy(req$.value)
+		ReqService.extractQurlProxy(req$.value)
 	}
 	catch (error) {
 		console.error(error)
-		notify('Error parsing cURL Proxy URL')
+		notify('Error parsing qURL Proxy URL')
 	}
 }
 </script>

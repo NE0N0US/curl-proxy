@@ -64,7 +64,7 @@ function getReqOptionsHeadersAll() {
 export class ReqOptions {
 	includeCredentials = false
 	integrityHashes: ReqV<string> = {disable: false, value: ''}
-	curlProxy: {
+	qurlProxy: {
 		server: ReqV<string>,
 		urls: ReqV<string>,
 		fastest: boolean,
@@ -164,7 +164,7 @@ async function getFullReqUrl(req: Req) {
 				status, method, resBody,
 				headersAll: {headers, delHeaders, resHeaders, delResHeaders},
 				body: {type: bodyType, value: body},
-			} = req.options.curlProxy,
+			} = req.options.qurlProxy,
 			params: [string, string][] = [[SearchParam.URL, url]]
 		if (server.disable || !server.value)
 			return url
@@ -399,7 +399,7 @@ export class Req {
 	method = 'GET'
 	url = ''
 	get urlValid() {
-		const {server} = this.options.curlProxy
+		const {server} = this.options.qurlProxy
 		return !!this.url && AppService.isValidUrl(AppService.resolveUrl(this.url))
 			&& (server.disable || !server.value || AppService.isValidUrl(AppService.resolveUrl(server.value)))
 	}
@@ -448,17 +448,17 @@ export class Req {
 		this.params.pagination = req.params.pagination
 		this.headers.pagination = req.headers.pagination
 		this.body.formPagination = req.body.formPagination
-		this.options.curlProxy.tab = req.options.curlProxy.tab
-		this.options.curlProxy.headersAll.headers!.pagination =
-			req.options.curlProxy.headersAll.headers!.pagination
-		this.options.curlProxy.headersAll.delHeaders!.pagination =
-			req.options.curlProxy.headersAll.delHeaders!.pagination
-		this.options.curlProxy.headersAll.resHeaders!.pagination =
-			req.options.curlProxy.headersAll.resHeaders!.pagination
-		this.options.curlProxy.headersAll.delResHeaders!.pagination =
-			req.options.curlProxy.headersAll.delResHeaders!.pagination
-		this.options.curlProxy.body.formPagination =
-			req.options.curlProxy.body.formPagination
+		this.options.qurlProxy.tab = req.options.qurlProxy.tab
+		this.options.qurlProxy.headersAll.headers!.pagination =
+			req.options.qurlProxy.headersAll.headers!.pagination
+		this.options.qurlProxy.headersAll.delHeaders!.pagination =
+			req.options.qurlProxy.headersAll.delHeaders!.pagination
+		this.options.qurlProxy.headersAll.resHeaders!.pagination =
+			req.options.qurlProxy.headersAll.resHeaders!.pagination
+		this.options.qurlProxy.headersAll.delResHeaders!.pagination =
+			req.options.qurlProxy.headersAll.delResHeaders!.pagination
+		this.options.qurlProxy.body.formPagination =
+			req.options.qurlProxy.body.formPagination
 		this.resultTab = req.resultTab
 		this.resultBodyTab = req.resultBodyTab
 		this.resultHeadersTextMode = req.resultHeadersTextMode

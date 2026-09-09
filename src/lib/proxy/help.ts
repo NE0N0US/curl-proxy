@@ -28,16 +28,16 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 		widthRbp = Math.max(...Object.values(ResBodyParam).map(({length}) => length)),
 		text = `${message ? `Error:\n${message}\n\n` : ''}` +
 			// description
-			`cURL Proxy:` +
-			`\ncURL Proxy is an unauthenticated, non-caching, Node.js HTTP(S) proxy that supports batch requests and is driven by URL query. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through custom JavaScript logic, which can chain requests and merge responses. It also supports retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and bypasses CORS response restrictions, useful for debugging and development.` +
+			`qURL Proxy:` +
+			`\nqURL Proxy is an unauthenticated, non-caching, Node.js HTTP(S) proxy that supports batch requests and is driven by URL query. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through custom JavaScript logic, which can chain requests and merge responses. It also supports retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and bypasses CORS response restrictions, useful for debugging and development.` +
 			// server
 			`\n\nServer:` +
-			`\n- Public instance - https://curl-proxy.vercel.app/?url=… or https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/curl-proxy` +
+			`\n- Public instance - https://qurl-proxy.vercel.app/?url=… or https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/qurl-proxy` +
 			`\n- Local instance  - npm start` +
-			`\n- CLI instance    - npx -y @ne0n0us/curl-proxy` +
+			`\n- CLI instance    - npx -y qurl-proxy` +
 			// library
 			`\n\nLibrary:` +
-			`\nimport {createProxy} from '@ne0n0us/curl-proxy'\nconst proxy = createProxy(config)\nconst response = await proxy(request)` +
+			`\nimport {createProxy} from 'qurl-proxy'\nconst proxy = createProxy(config)\nconst response = await proxy(request)` +
 			// url params
 			`\n\nURL Parameters:` +
 			`\n* ${

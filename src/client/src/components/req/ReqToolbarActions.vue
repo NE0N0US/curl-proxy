@@ -52,7 +52,7 @@
 				<menu-item
 					icon="mdi-information-outline"
 					label="About"
-					caption="About URL Artisan"
+					caption="About qURL Artisan"
 					@click="dialog({component: AboutDialog})"
 				/>
 			</q-list>

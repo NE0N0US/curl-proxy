@@ -18,7 +18,7 @@
 			<q-separator/>
 		</div>
 		<div class="doc-section">
-			<b>URL Artisan</b> is a browser-based HTTP client that uses native fetch by default and integrates with <a href="/" target="_blank" translate="no">cURL Proxy</a> when you need more control over requests and responses.<br>
+			<b>qURL Artisan</b> is a browser-based HTTP client that uses native fetch by default and integrates with <a href="/" target="_blank" translate="no">qURL Proxy</a> when you need more control over requests and responses.<br>
 			Version: {{VERSION}}
 		</div>
 		<q-separator/>
@@ -44,7 +44,7 @@
 			External links:
 			<ul>
 				<li><span>
-					Help: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers" target="_blank">HTTP headers</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status" target="_blank">status codes</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types" target="_blank">MIME types</a> (<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types" target="_blank">common</a>), <a href="https://deepwiki.com/NE0N0US/curl-proxy/1.3-url-artisan" target="_blank">DeepWiki</a>
+					Help: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers" target="_blank">HTTP headers</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status" target="_blank">status codes</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types" target="_blank">MIME types</a> (<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types" target="_blank">common</a>), <a href="https://deepwiki.com/NE0N0US/qurl-proxy/1.3-qurl-artisan" target="_blank">DeepWiki</a>
 				</span></li>
 				<li><span>
 					Tools: QR <a href="https://monocalc.com/tool/encode_decode/qr_code_generator" target="_blank">encode</a> and <a href="https://monocalc.com/tool/encode_decode/qr_code_decoder" target="_blank">decode</a>, <a href="https://www.punycoder.com/" target="_blank">Punycode</a>, <a href="https://www.64baser.com/" target="_blank">Base64</a>, <a href="https://webhook.site/" target="_blank" translate="no">Webhook.site</a>

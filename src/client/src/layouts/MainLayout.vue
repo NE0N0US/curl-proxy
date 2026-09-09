@@ -100,11 +100,18 @@ const
 	watcherAltCtrlUp = whenever(keys$.alt_ctrl_arrowup!, () => collapse$.value = 'end'),
 	watcherAltCtrlDown = whenever(keys$.alt_ctrl_arrowdown!, () => collapse$.value = 'start'),
 
-	title$ = useTitle(() => 'URL Artisan' + (req$.value.urlValid ? `: ${
-		decodeURI(toUnicode(new URL(
-			AppService.resolveUrl(req$.value.url)
-		).hostname))
-	}` : '')),
+	title$ = useTitle(() => {
+		const
+			urlValid = req$.value.urlValid,
+			url = urlValid ? new URL(
+				AppService.resolveUrl(req$.value.url)
+			) : undefined
+		return 'qURL Artisan' + (urlValid ? `: ${
+			decodeURI(toUnicode(url!.hostname))
+		}${
+			url!.port ? `:${url!.port}` : ''
+		}` : '')
+	}),
 
 	listenerPreventUnload = useEventListener(window, 'beforeunload', event => {
 		if (touched$.value) {
@@ -154,10 +161,10 @@ function send(command?: 'repeat') {
 	const
 		req = req$.value,
 		hasBody = req.body.type !== ReqBodyType.NONE,
-		hasCurlProxy = !!req.options.curlProxy.server.value && !req.options.curlProxy.server.disable,
-		hasCurlProxyBody = hasCurlProxy && req.options.curlProxy.body.type !== ReqBodyType.NONE,
-		method = hasCurlProxy ? (req.options.curlProxy.method || req.method) : req.method
-	if (['GET', 'OPTIONS'].includes(method) && (hasBody || hasCurlProxyBody))
+		hasQurlProxy = !!req.options.qurlProxy.server.value && !req.options.qurlProxy.server.disable,
+		hasQurlProxyBody = hasQurlProxy && req.options.qurlProxy.body.type !== ReqBodyType.NONE,
+		method = hasQurlProxy ? (req.options.qurlProxy.method || req.method) : req.method
+	if (['GET', 'OPTIONS'].includes(method) && (hasBody || hasQurlProxyBody))
 		notify(method + ' request cannot have a body')
 	else {
 		req.fetchRepeat = command === 'repeat'

@@ -172,7 +172,7 @@ function cliHelp() {
 				fallback === undefined ? '' : ` (default: ${fallback})`
 			}`
 		).join('\n')
-	return 'Start a HTTP proxy\n\nUsage:\nnpx -y @ne0n0us/curl-proxy [options]\n\nOptions:\n' + options
+	return 'Start a HTTP proxy\n\nUsage:\nnpx -y qurl-proxy [options]\n\nOptions:\n' + options
 }
 
 function main() {

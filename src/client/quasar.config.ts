@@ -43,8 +43,8 @@ export default defineConfig(ctx => {
 		},
 		build: {
 			allowOutsideProjectDistDir: true,
-			distDir: '../../dist/url-artisan',
-			publicPath: '/url-artisan',
+			distDir: 'dist/qurl-artisan',
+			publicPath: '/qurl-artisan',
 			vueRouterMode: 'history',
 			useFilenameHashes: false,
 			typescript: {
