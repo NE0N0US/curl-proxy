@@ -60,7 +60,7 @@
 				<q-tab
 					icon="mdi-tune-variant"
 					label="Options"
-					:alert="!!(req$.options.includeCredentials || req$.options.followRedirects ||
+					:alert="!!(req$.options.includeCredentials ||
 						req$.options.integrityHashes.value && !req$.options.integrityHashes.disable ||
 						req$.options.curlProxy.server.value && !req$.options.curlProxy.server.disable)"
 					name="options"

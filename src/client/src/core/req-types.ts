@@ -63,7 +63,6 @@ function getReqOptionsHeadersAll() {
 
 export class ReqOptions {
 	includeCredentials = false
-	followRedirects = false
 	integrityHashes: ReqV<string> = {disable: false, value: ''}
 	curlProxy: {
 		server: ReqV<string>,
@@ -282,7 +281,6 @@ async function toRequest(req: Req) {
 				? {} : {integrity: req.options.integrityHashes.value},
 			method: req.method,
 			priority: 'high',
-			redirect: req.options.followRedirects ? 'follow' : 'manual',
 			signal: aborter.signal,
 		}),
 		abort: aborter.abort.bind(aborter),

@@ -18,9 +18,7 @@ enum CurlParam {
 
 export class CurlService {
 	static async toCurl(req: Req) {
-		const args: string[] = ['curl']
-		if (req.options.followRedirects)
-			args[0] += ' ' + CurlParam.REDIRECT
+		const args: string[] = ['curl ' + CurlParam.REDIRECT]
 		args.push(CurlParam.URL + ' ' + shellQuote((await req.urlFull)!))
 		args.push(CurlParam.METHOD + ' ' + shellQuote(req.method))
 		args.push(...req.headers.rows
@@ -66,8 +64,7 @@ export class CurlService {
 	static fromCurl(curl: string) {
 		const
 			req = new Req(),
-			{flags: {location}, url, method, headers, formData, body, bodyArg} = parse(curl)
-		req.options.followRedirects = location ?? false
+			{url, method, headers, formData, body, bodyArg} = parse(curl)
 		req.url = url ?? ''
 		req.method = method.toUpperCase()
 		req.headers.rows = headers.map(row => Object.assign(row, {disable: false}))

@@ -7,12 +7,6 @@
 			caption="Include cookies, TLS client certificates, Authorization and Proxy-Authorization headers"
 			v-model="options$.includeCredentials"
 		/>
-		<req-options-form-toggle
-			icon="mdi-directions-fork"
-			label="Follow Redirects"
-			caption="Automatically follow 3xx responses"
-			v-model="options$.followRedirects"
-		/>
 	</q-list>
 	<q-input
 		class="list-item-input q-pa-toolbar"

@@ -116,7 +116,6 @@ export class ReqService {
 		req.body.type = obj.bodyType ?? ReqBodyType.NONE
 		req.body.value = ReqService.#deserializeBody(obj) ?? null
 		req.options.includeCredentials = obj.includeCredentials ?? false
-		req.options.followRedirects = obj.followRedirects ?? false
 		req.options.integrityHashes.disable = false
 		req.options.integrityHashes.value = obj.integrityHashes ?? ''
 		if (obj.extractCurlProxy)
@@ -150,7 +149,6 @@ export class ReqService {
 			bodyType: req.body.type === ReqBodyType.NONE ? undefined : req.body.type,
 			body: ReqService.#serializeBody(req) ?? undefined,
 			includeCredentials: req.options.includeCredentials ? true : undefined,
-			followRedirects: req.options.followRedirects ? true : undefined,
 			integrityHashes: req.options.integrityHashes.disable
 				? undefined : req.options.integrityHashes.value || undefined,
 			extractCurlProxy:
