@@ -35,10 +35,6 @@ export function configWithFallbacks(configInit?: Partial<ProxyConfig>): ProxyCon
 export function proxyDebugResponse(req: Request, configInit: Partial<ProxyConfig>) {
 	return new Response(JSON.stringify({
 		...configWithFallbacks(configInit),
-		allowHelpHtml: undefined,
-		githubApiMd: undefined,
-		githubApiVer: undefined,
-		githubApiToken: undefined,
 		cpuArch: os.arch(),
 		cpuEndianness: os.endianness(),
 		cpuParallelism: os.availableParallelism(),

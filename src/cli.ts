@@ -92,7 +92,7 @@ async function serveThrough(
 
 function matchesRoute(url: string, route: string) {
 	return url?.match(
-		new RegExp(`^${route.replace('/', '\\/')}(?:[\\?#].*)?$`)
+		new RegExp(`^${route}(?:[\\?#].*)?$`)
 	)
 }
 

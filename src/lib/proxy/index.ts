@@ -53,7 +53,7 @@ export function createProxy(
 				.map(url => resolveUrl(url, req.url)),
 			requestAborters = urls.map(() => new AbortController()),
 			responsePromises = urls.map((url, index) => {
-				const headers = req.headers
+				const headers = new Headers(req.headers)
 				if (params.get(SearchParam.SKIP_DEFAULTS) === null)
 					headers.set(Header.HOST, new URL(url).host)
 				const request = new Request(url, new Request(
@@ -164,16 +164,17 @@ export function createProxy(
 					responses.length ? responses.map(result =>
 						result.status === 'fulfilled' ? result.value.status : null
 					).join(',') : undefined,
+				stateBeforeCustom = {
+					body: doRunCustom ? res.clone().body : res.body,
+					headers: processResHeaders(resHeaders, searchParams, contentEncoding, proxyResponses, headers),
+					status: status || res.status,
+					statusText: res.statusText,
+				},
 				{request, body: newResBody, ...newResInit} = await processCustom(
 					newReq, res, responses.map(
 						response => response.status === 'fulfilled' ? response.value : null
 					),
-					{
-						body: doRunCustom ? res.clone().body : res.body,
-						headers: processResHeaders(resHeaders, searchParams, contentEncoding, proxyResponses, headers),
-						status: status || res.status,
-						statusText: res.statusText,
-					},
+					{...stateBeforeCustom},
 					doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined,
 					config.runCustomMs, config.runCustomBytes, config.runCustomUnsafe,
 					error => console.error?.(consolePrefix + 'error:', error)
@@ -191,7 +192,8 @@ export function createProxy(
 					throttleBody(
 						encodeBody(
 							transformBody(newResBody, resbody, req.signal),
-							contentEncoding,
+							stateBeforeCustom.headers === newResInit.headers
+								? contentEncoding : AcceptEncodingHeader.IDENTITY,
 							req.signal
 						),
 						throttle,

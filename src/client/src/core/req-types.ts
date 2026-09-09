@@ -128,6 +128,8 @@ async function stringifyReqBody(type: ReqBodyType, body: ReqBody) {
 		case ReqBodyType.FILE:
 			if (body)
 				return await (body as File).text()
+			else
+				break
 		case ReqBodyType.FORM_URLENCODED:
 		case ReqBodyType.FORM_MULTIPART:
 			const fields = (body as ReqKV[] | ReqKV<string | File[]>[])

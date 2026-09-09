@@ -47,58 +47,65 @@ export function throttleBody(body: Body, kbps: number, options: Partial<{
 	const
 		tick = options.tick || THROTTLE_TICK_DEFAULT,
 		reader = body.getReader(),
-		state = {
-			done: false,
-			chunks: [] as Bytes[],
-			offset: 0,
-			aborted: false,
-			reason: undefined as any,
-		}
-	options.signal?.addEventListener('abort', () =>
-		Object.assign(state, {
-			aborted: options.signal!.aborted,
-			reason: options.signal!.reason,
-		}),
-	{once: true})
-	return new ReadableStream<Bytes>({
-		cancel(reason) {
-			reader.cancel(reason)
-		},
-		start() {
-			(async () => {
-				while (!state.done) {
-					const chunk = await reader.read()
-					state.done = chunk.done
-					state.chunks.push(...chunk.value ? [chunk.value] : [])
-				}
-			})().catch(() => state.done = true)
-		},
-		async pull(controller) {
-			while (!state.done && !state.chunks.length)
-				await new Promise(resolve => setTimeout(resolve, 1))
-			if (!state.chunks.length)
-				return controller.close()
-			let tickBytes = Math.round((kbps * 1024) / 8 * tick / 1000)
-			while (tickBytes > 0 && state.chunks.length) {
-				const
-					chunk = state.chunks[0],
-					slice = Math.min(tickBytes, chunk.length - state.offset)
-				controller.enqueue(
-					chunk.subarray(state.offset, state.offset + slice)
-				)
-				state.offset += slice
-				tickBytes -= slice
-				if (state.offset === chunk.length) {
-					state.chunks.shift()
-					state.offset = 0
-				}
+		bytesPerTick = Math.max(
+			1,
+			Math.round((kbps * 1024) / 8 * tick / 1000)
+		)
+	let
+		chunk: Bytes | undefined,
+		offset = 0
+	function sleep() {
+		return new Promise<void>((resolve, reject) => {
+			const timer = setTimeout(() => {
+				cleanup()
+				resolve()
+			}, tick)
+			function cleanup() {
+				clearTimeout(timer)
+				options.signal?.removeEventListener('abort', abort)
 			}
-			await new Promise((resolve, reject) => {
-				if (state.aborted)
-					reject(state.reason ?? getAbortError())
+			function abort() {
+				cleanup()
+				reject(options.signal?.reason ?? getAbortError())
+			}
+			if (options.signal) {
+				if (options.signal.aborted)
+					abort()
 				else
-					setTimeout(resolve, tick)
-			})
+					options.signal.addEventListener('abort', abort, {once: true})
+			}
+		})
+	}
+	return new ReadableStream<Bytes>({
+		async pull(controller) {
+			try {
+				if (options.signal?.aborted)
+					throw options.signal.reason ?? getAbortError()
+				let remaining = bytesPerTick
+				while (remaining > 0) {
+					if (!chunk || offset >= chunk.length) {
+						const result = await reader.read()
+						if (result.done) {
+							controller.close()
+							return
+						}
+						chunk = result.value
+						offset = 0
+					}
+					const size = Math.min(remaining, chunk.length - offset)
+					controller.enqueue(chunk.subarray(offset, offset + size))
+					offset += size
+					remaining -= size
+				}
+				await sleep()
+			}
+			catch (reason) {
+				await reader.cancel(reason).catch(() => {})
+				controller.error(reason)
+			}
+		},
+		async cancel(reason) {
+			await reader.cancel(reason)
 		},
 	})
 }

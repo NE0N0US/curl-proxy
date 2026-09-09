@@ -1,7 +1,7 @@
 {
 	"name": "@ne0n0us/url-artisan",
 	"description": "Browser-based HTTP client that uses native fetch by default and integrates with cURL Proxy when you need more control over requests and responses.",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"engines": {
 		"node": ">=22.12.0"
 	},

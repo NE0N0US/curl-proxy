@@ -133,12 +133,16 @@ export function resolveAcceptHeader(
 ) {
 	const
 		items = value
-			?.split(/, */g)
+			?.split(/\s*,\s*/g)
 			.map(item => {
-				const [value, weight] = item.split(';q=')
+				const [value, weight] = item.split(/\s*;\s*q\s*=\s*/i)
 				return {value, weight: +(weight ?? 1)}
 			})
-			.filter(({value}) => allow.includes(value)) ?? [],
+			.filter(({value, weight}) =>
+				allow.includes(value) &&
+					Number.isFinite(weight) &&
+					weight >= 0 && weight <= 1
+			) ?? [],
 		maxWeight = Math.max(...items.map(({weight}) => weight))
 	return items.find(({weight}) => weight === maxWeight)?.value ?? fallback
 }
@@ -159,10 +163,9 @@ export function deleteHeadersWildcard(headers: Headers, key: string) {
 	const regex = new RegExp('^' + key.replace(/./g, char =>
 		char === '*' ? '.*' : escapeRegex(char)
 	) + '$', 'i')
-	headers.keys().forEach(key => {
+	;[...headers.keys()].forEach(key => {
 		if (key.match(regex))
-			while (headers.has(key))
-				headers.delete(key)
+			headers.delete(key)
 	})
 	return headers
 }

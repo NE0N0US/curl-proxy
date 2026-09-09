@@ -15,7 +15,7 @@ async function reqResView(source: Request | Response, rejectGet?: Function) {
 	if (rejectGet)
 		source = source.clone()
 	else
-		bytes = !source.body ? new Uint8Array() : await new Response(source.body).bytes()
+		bytes = !source.body ? new Uint8Array() : await new Response(source.clone().body).bytes()
 	const view = {
 		url: source.url,
 		headers: Object.fromEntries(source.headers),

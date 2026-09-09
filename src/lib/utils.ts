@@ -79,9 +79,9 @@ export function formatStringRecord(record: StringRecord) {
 	return JSON.stringify(record, undefined, ' ').replace(/(?:(?<={)\n )|\n/g, '')
 }
 
-/** https://lodash.com/docs/#escapeRegExp, except `"` */
+/** https://lodash.com/docs/#escapeRegExp (see source) */
 export function escapeRegex(text: string) {
-	return text.replace(/[\^\$\.\*\+\?\(\)\[\]\{\}\|]/g, char => '\\' + char)
+	return text.replace(/[\\^$.*+?()[\]{}|]/g, char => '\\' + char)
 }
 
 /** https://lodash.com/docs/#escape */

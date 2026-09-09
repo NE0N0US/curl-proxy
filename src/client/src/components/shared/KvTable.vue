@@ -459,7 +459,7 @@ function filterRows(
 			result = regex
 				? view
 					.filter(({key, value}) =>
-						[key, value].some(cell => regex.test(cell))
+						[key, value].some(cell => (cell?.toString() ?? '').match(regex))
 					)
 					.map(({row}) => row)
 				: [...fuzzysort.go(filter.query, view, {keys: ['key', 'value']})]
