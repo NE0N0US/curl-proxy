@@ -14,17 +14,19 @@
 		"url": "https://ne0n0us.github.io/"
 	},
 	"license": "Apache-2.0",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"engines": {
 		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"start": "vercel dev -Ll 0.0.0.0:2077",
 		"prepublishOnly": "tsup --format esm,cjs --target es2024 --dts --tsconfig tsconfig.json --treeshake safest src/lib/proxy/index.ts && tsup --format esm --target es2024 --external ./index.js --clean false --tsconfig tsconfig.json src/cli.ts",
-		"buildSea": "npm run prepublishOnly && tsup -d bin --format cjs --target es2024 dist/cli.js && node src/sea/preprocess.js && node --build-sea bin/sea-config.json && node src/sea/postprocess.js"
+		"buildSea": "npm run prepublishOnly && tsup -d bin --format cjs --target es2024 dist/cli.js && node src/sea/preprocess.js && node --build-sea bin/sea-config.json && node src/sea/postprocess.js",
+		"build": "cd src/client && npm i && npm run build && cd ../.."
 	},
 	"dependencies": {
 		"@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+		"jsoncrush": "^1.1.8",
 		"quickjs-emscripten-core": "^0.32.0",
 		"quickjs-emscripten-sync": "^1.11.0",
 		"undici": "^7.28.0"
@@ -32,7 +34,7 @@
 	"devDependencies": {
 		"@types/node": "^24.0.0",
 		"tsup": "^8.5.1",
-		"vercel": "^56.1.0"
+		"vercel": "^59.11.7"
 	},
 	"publishConfig": {
 		"access": "public"

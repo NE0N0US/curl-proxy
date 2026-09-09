@@ -1,46 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" name="viewport" content="width=device-width,initial-scale=1">
-		<title>cURL Proxy</title>
-		<link rel="icon" href="data:image/vnd.microsoft.icon;base64,">
-		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css">
-		<style>
-			html, body {
-				color-scheme: light dark;
-				overscroll-behavior: none;
-				margin: 0;
-				padding: 0;
-			}
-			.markdown-body {
-				box-sizing: border-box;
-				min-height: 100vh;
-				min-height: 100dvh;
-				padding: 2rem;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="markdown-body"><div class="markdown-heading"><h1 class="heading-element">cURL Proxy</h1><a id="user-content-curl-proxy" class="anchor" aria-label="Permalink: cURL Proxy" href="#user-content-curl-proxy"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p><strong>cURL Proxy</strong> is an unauthenticated, non-caching, Node.js <strong>HTTP(S) proxy</strong> that supports batch requests and is <a href="#user-content-url-parameters">driven by URL query</a>. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through <em><a href="#user-content-typescript-declaration-of-resbodyjavascript">custom JavaScript logic</a></em>, which can chain requests and merge responses. <em>It also supports</em> retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and <em>bypasses CORS</em> response restrictions, useful for debugging and development. <sub><a href="#user-content-notes">Notes</a> · <a href="#user-content-examples">Examples</a></sub></p>
+<div class="markdown-heading"><h1 class="heading-element">cURL Proxy <a href="/url-artisan?open=about"><img src="https://camo.githubusercontent.com/4bf0184a3b243e4cadd1bd971076a88192f6eaca3c8720b6d5f985cc84bb1522/68747470733a2f2f62616467656e2e6e65742f7374617469632f636c69656e742f55524c2532304172746973616e3f69636f6e3d6368726f6d65" alt="&amp; URL Artisan" data-canonical-src="https://badgen.net/static/client/URL%20Artisan?icon=chrome" style="max-width: 100%;"></a>
+</h1><a id="user-content-curl-proxy-" class="anchor" aria-label="Permalink: cURL Proxy " href="#curl-proxy-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<p><strong>cURL Proxy</strong> is an unauthenticated, non-caching, Node.js <strong>HTTP(S) proxy</strong> that supports batch requests and is <a href="#url-parameters">driven by URL query</a>. Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through <em><a href="#typescript-declaration-of-resbodyjavascript">custom JavaScript logic</a></em>, which can chain requests and merge responses. <em>It also supports</em> retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and <em>bypasses CORS</em> response restrictions, useful for debugging and development. <sub><a href="#notes-">Notes</a> · <a href="/url-artisan?open=examples">Examples</a></sub></p>
 <div class="markdown-heading"><h1 class="heading-element">Usage <a href="https://nodejs.org/en/download" rel="nofollow"><img src="https://camo.githubusercontent.com/13084f2fa946bf9a76152723a3ec1adf37b97ca383f12c1638ababb22211a04e/68747470733a2f2f62616467656e2e6e65742f6e706d2f6e6f64652f406e65306e3075732f6375726c2d70726f78793f69636f6e3d6e6f6465646f746a73" alt="" data-canonical-src="https://badgen.net/npm/node/@ne0n0us/curl-proxy?icon=nodedotjs" style="max-width: 100%;"></a>
-</h1><a id="user-content-usage-" class="anchor" aria-label="Permalink: Usage " href="#user-content-usage-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+</h1><a id="user-content-usage-" class="anchor" aria-label="Permalink: Usage " href="#usage-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <div class="markdown-heading"><h2 class="heading-element">Server <a href="https://packagephobia.com/result?p=@ne0n0us/curl-proxy" rel="nofollow"><img src="https://camo.githubusercontent.com/0d81644073f444e5a8173a5012f4912f200d6a312caf080f93fce2d18f4ee675/68747470733a2f2f62616467656e2e6e65742f7061636b61676570686f6269612f696e7374616c6c2f406e65306e3075732f6375726c2d70726f78793f69636f6e3d7061636b61676570686f626961" alt="" data-canonical-src="https://badgen.net/packagephobia/install/@ne0n0us/curl-proxy?icon=packagephobia" style="max-width: 100%;"></a>
-</h2><a id="user-content-server-" class="anchor" aria-label="Permalink: Server " href="#user-content-server-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+</h2><a id="user-content-server-" class="anchor" aria-label="Permalink: Server " href="#server-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>Public instance - <code>https://curl-proxy.vercel.app/?url=…</code> or <a href="https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/curl-proxy" rel="nofollow">clone</a>
 </li>
 <li>Local instance - <code>npm start</code>
 </li>
-<li>CLI instance - <code>npx -y @ne0n0us/curl-proxy</code>
+<li>CLI instance (no client) - <code>npx -y @ne0n0us/curl-proxy</code>
 </li>
 </ul>
-<div class="markdown-heading"><h2 class="heading-element">Library <a href="https://bundlephobia.com/package/@ne0n0us/curl-proxy" rel="nofollow"><img src="https://camo.githubusercontent.com/50771442bf38f93c13e82d21b5d983025d91f6b9600fa5f4d8bc334d84f0f00d/68747470733a2f2f62616467656e2e6e65742f62756e646c6570686f6269612f6d696e7a69702f406e65306e3075732f6375726c2d70726f78793f69636f6e3d6e706d" alt="" data-canonical-src="https://badgen.net/bundlephobia/minzip/@ne0n0us/curl-proxy?icon=npm" style="max-width: 100%;"></a>
-</h2><a id="user-content-library-" class="anchor" aria-label="Permalink: Library " href="#user-content-library-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 class="heading-element">Library <a href="https://packagephobia.com/result?p=@ne0n0us/curl-proxy" rel="nofollow"><img src="https://camo.githubusercontent.com/5c9d4b526d9f13346864d8f00bb20a4e921654347dd9279946f01ea6a7453228/68747470733a2f2f62616467656e2e6e65742f7061636b61676570686f6269612f7075626c6973682f406e65306e3075732f6375726c2d70726f78793f69636f6e3d7061636b61676570686f626961" alt="" data-canonical-src="https://badgen.net/packagephobia/publish/@ne0n0us/curl-proxy?icon=packagephobia" style="max-width: 100%;"></a>
+</h2><a id="user-content-library-" class="anchor" aria-label="Permalink: Library " href="#library-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <div class="highlight highlight-source-js"><pre><span class="pl-k">import</span> <span class="pl-kos">{</span><span class="pl-s1">createProxy</span><span class="pl-kos">}</span> <span class="pl-k">from</span> <span class="pl-s">'@ne0n0us/curl-proxy'</span>
 <span class="pl-k">const</span> <span class="pl-s1">proxy</span> <span class="pl-c1">=</span> <span class="pl-en">createProxy</span><span class="pl-kos">(</span><span class="pl-s1">config</span><span class="pl-kos">)</span>
 <span class="pl-k">const</span> <span class="pl-s1">response</span> <span class="pl-c1">=</span> <span class="pl-k">await</span> <span class="pl-s1">proxy</span><span class="pl-kos">(</span><span class="pl-s1">request</span><span class="pl-kos">)</span></pre></div>
-<div class="markdown-heading"><h2 class="heading-element">URL Parameters</h2><a id="user-content-url-parameters" class="anchor" aria-label="Permalink: URL Parameters" href="#user-content-url-parameters"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 class="heading-element">URL Parameters</h2><a id="user-content-url-parameters" class="anchor" aria-label="Permalink: URL Parameters" href="#url-parameters"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
 <li>
 <code>url</code> - resource URL, <code>http</code> assumed, <em>required</em>, <em>repeatable</em> (max. <code>16</code>), first response used, other statuses in comma-separated <code>X-Proxy-Responses</code>
@@ -48,9 +26,9 @@
 <li>
 <code>fastest</code> - return first available response and its index in <code>X-Proxy-Responses</code>, abort others</li>
 <li>
-<code>headers</code> - request headers to overwrite (<code>Host</code> is determined dynamically)</li>
+<code>headers</code> - JSON or JSONCrush object of request headers to overwrite (<code>Host</code> is determined dynamically)</li>
 <li>
-<code>delheaders</code> - names of request headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
+<code>delheaders</code> - JSON or JSONCrush array of names of request headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
 <div class="highlight highlight-source-json-comments"><pre>[
   <span class="pl-c"><span class="pl-c">//</span> https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers</span>
   <span class="pl-s"><span class="pl-pds">"</span>Connection<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Keep-Alive<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Proxy-Authorization<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Trailer<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Transfer-Encoding<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>TE<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Upgrade<span class="pl-pds">"</span></span>,
@@ -63,26 +41,25 @@
 ]</pre></div>
 </li>
 <li>
-<code>resheaders</code> - response headers to overwrite (<code>Access-Control-Allow-Origin</code> and <code>Access-Control-Expose-Headers</code> are set automatically), in addition to:
+<code>resheaders</code> - JSON or JSONCrush object of response headers to overwrite (<code>Access-Control-Allow-Origin</code> and <code>Access-Control-Expose-Headers</code> are set automatically), in addition to:
 <div class="highlight highlight-source-json"><pre>{
   <span class="pl-ent">"Access-Control-Allow-Headers"</span>: <span class="pl-s"><span class="pl-pds">"</span>*<span class="pl-pds">"</span></span>,
+  <span class="pl-ent">"Access-Control-Allow-Credentials"</span>: <span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>,
   <span class="pl-ent">"Cross-Origin-Resource-Policy"</span>: <span class="pl-s"><span class="pl-pds">"</span>cross-origin<span class="pl-pds">"</span></span>,
   <span class="pl-ent">"Timing-Allow-Origin"</span>: <span class="pl-s"><span class="pl-pds">"</span>*<span class="pl-pds">"</span></span>
 }</pre></div>
 </li>
 <li>
-<code>delresheaders</code> - names of response headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
+<code>delresheaders</code> - JSON or JSONCrush array of names of response headers to delete (<code>Connection</code> is deleted along with headers listed in it, <code>*</code> is a wildcard), in addition to:
 <div class="highlight highlight-source-json-comments"><pre>[
   <span class="pl-c"><span class="pl-c">//</span> https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers</span>
   <span class="pl-s"><span class="pl-pds">"</span>Connection<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Keep-Alive<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Proxy-Authenticate<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Trailer<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Transfer-Encoding<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Upgrade<span class="pl-pds">"</span></span>,
-  <span class="pl-c"><span class="pl-c">//</span> for Access-Control-Allow-Origin</span>
-  <span class="pl-s"><span class="pl-pds">"</span>Access-Control-Allow-Credentials<span class="pl-pds">"</span></span>,
 ]</pre></div>
 </li>
 <li>
 <code>renresheaders</code> - rename response headers to <code>X-Original-*</code> before changes</li>
 <li>
-<code>skipdefaults</code> - do not apply default header changes, except <a href="#user-content-response-headers-safety">response safety behavior</a> and setting response <code>X-Proxy-Recursion</code> (max. <code>16</code>)</li>
+<code>skipdefaults</code> - do not apply default header changes, except <a href="#response-headers-safety">response safety behavior</a> and setting response <code>X-Proxy-Recursion</code> (max. <code>16</code>)</li>
 <li>
 <code>method</code> - request method override</li>
 <li>
@@ -93,28 +70,26 @@
 <li>
 <code>null</code> - remove response body</li>
 <li>
-<code>atob</code> - decode body from base64</li>
+<code>atob</code> - decode body from Base64</li>
 <li>
-<code>btoa</code> - encode body to base64</li>
+<code>btoa</code> - encode body to Base64</li>
 <li>
-<code>javascript:…</code> - <a href="#user-content-typescript-declaration-of-resbodyjavascript">custom handler</a>, returns body, response or request</li>
+<code>javascript:…</code> - <a href="#typescript-declaration-of-resbodyjavascript">custom handler</a>, returns body, response or request</li>
 </ul>
 </li>
 <li>
 <code>status</code> - response status code to overwrite</li>
-<li>
-<code>statustext</code> - response status message to overwrite</li>
 <li>
 <code>retry</code> - retries after first request</li>
 <li>
 <code>retryin</code> - milliseconds between retries, supports exponential backoff:<br>
 <em>min</em>(<em>in</em> * <em>factor</em><sup><em>attempt</em></sup>, <em>limit</em>)</li>
 <li>
-<code>retryfactor</code> - backoff multiplier per retry (industry standard is <code>2</code>)</li>
+<code>retryfactor</code> - backoff multiplier per retry (default is <code>1</code>, industry standard is <code>2</code>)</li>
 <li>
 <code>retrylimit</code> - backoff maximum milliseconds</li>
 <li>
-<code>timeout</code> - milliseconds to abort request after</li>
+<code>timeout</code> - milliseconds to abort request after (default is <code>300000</code>)</li>
 <li>
 <code>ttfb</code> - milliseconds to first response byte</li>
 <li>
@@ -122,7 +97,7 @@
 <li>
 <code>throttleup</code> - upload bandwidth limit in kbit/s</li>
 </ul>
-<div class="markdown-heading"><h2 class="heading-element">Response Headers Safety</h2><a id="user-content-response-headers-safety" class="anchor" aria-label="Permalink: Response Headers Safety" href="#user-content-response-headers-safety"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 class="heading-element">Response Headers Safety</h2><a id="user-content-response-headers-safety" class="anchor" aria-label="Permalink: Response Headers Safety" href="#response-headers-safety"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <div class="highlight highlight-source-ts"><pre><span class="pl-c">// https://github.com/nodejs/undici/issues/2514</span>
 <span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'Content-Encoding'</span><span class="pl-kos">)</span><span class="pl-kos">)</span> <span class="pl-kos">{</span>
   <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Encoding'</span><span class="pl-kos">)</span>
@@ -138,12 +113,12 @@
 <span class="pl-c">// resbody param</span>
 <span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-kos">[</span><span class="pl-s">'null'</span><span class="pl-kos">,</span> <span class="pl-s">'atob'</span><span class="pl-kos">,</span> <span class="pl-s">'btoa'</span><span class="pl-kos">]</span><span class="pl-kos">.</span><span class="pl-en">includes</span><span class="pl-kos">(</span><span class="pl-s1">params</span><span class="pl-kos">.</span><span class="pl-en">get</span><span class="pl-kos">(</span><span class="pl-s">'resbody'</span><span class="pl-kos">)</span><span class="pl-kos">?.</span><span class="pl-en">toLowerCase</span><span class="pl-kos">(</span><span class="pl-kos">)</span><span class="pl-kos">)</span><span class="pl-kos">)</span>
   <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Length'</span><span class="pl-kos">)</span></pre></div>
-<div class="markdown-heading"><h3 class="heading-element">After running <code>resbody</code> <a href="#user-content-typescript-declaration-of-resbodyjavascript">custom handler</a>
-</h3><a id="user-content-after-running-resbody-custom-handler" class="anchor" aria-label="Permalink: After running resbodycustom handler" href="#user-content-after-running-resbody-custom-handler"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h3 class="heading-element">After running <code>resbody</code> <a href="#typescript-declaration-of-resbodyjavascript">custom handler</a>
+</h3><a id="user-content-after-running-resbody-custom-handler" class="anchor" aria-label="Permalink: After running resbodycustom handler" href="#after-running-resbody-custom-handler"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <div class="highlight highlight-source-ts"><pre><span class="pl-k">if</span> <span class="pl-kos">(</span><span class="pl-c1">!</span><span class="pl-s1">result</span> <span class="pl-k">instanceof</span> <span class="pl-v">Request</span> <span class="pl-c1">&amp;&amp;</span> <span class="pl-c1">!</span><span class="pl-s1">result</span> <span class="pl-k">instanceof</span> <span class="pl-v">Response</span> <span class="pl-c1">&amp;&amp;</span> <span class="pl-s1">result</span> <span class="pl-c1">!==</span> <span class="pl-c1">undefined</span><span class="pl-kos">)</span>
   <span class="pl-s1">headers</span><span class="pl-kos">.</span><span class="pl-en">delete</span><span class="pl-kos">(</span><span class="pl-s">'Content-Length'</span><span class="pl-kos">)</span></pre></div>
 <div class="markdown-heading"><h2 class="heading-element">TypeScript Declaration of <code>resbody=javascript:…</code>
-</h2><a id="user-content-typescript-declaration-of-resbodyjavascript" class="anchor" aria-label="Permalink: TypeScript Declaration of resbody=javascript:…" href="#user-content-typescript-declaration-of-resbodyjavascript"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+</h2><a id="user-content-typescript-declaration-of-resbodyjavascript" class="anchor" aria-label="Permalink: TypeScript Declaration of resbody=javascript:…" href="#typescript-declaration-of-resbodyjavascript"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <div class="highlight highlight-source-ts"><pre><span class="pl-k">declare</span> <span class="pl-k">function</span> <span class="pl-s1">custom</span><span class="pl-kos">(</span>
   <span class="pl-c">// request with parameters applied</span>
   <span class="pl-s1">req</span>: <span class="pl-smi">RequestView</span><span class="pl-kos">,</span>
@@ -152,6 +127,7 @@
   <span class="pl-c">// other responses, null if error</span>
   <span class="pl-s1">responses</span>: <span class="pl-smi">Array</span><span class="pl-c1">&lt;</span><span class="pl-smi">ResponseView</span> <span class="pl-c1">|</span> <span class="pl-c1">null</span><span class="pl-c1">&gt;</span>
 <span class="pl-kos">)</span>: <span class="pl-smi">CustomResult</span>
+
 
 <span class="pl-k">interface</span> <span class="pl-smi">ReqResView</span> <span class="pl-kos">{</span>
   <span class="pl-c1">url</span>: <span class="pl-smi">string</span>
@@ -163,9 +139,11 @@
   <span class="pl-c1">json</span>: <span class="pl-smi">any</span>
 <span class="pl-kos">}</span>
 
+
 <span class="pl-k">interface</span> <span class="pl-smi">RequestView</span> <span class="pl-k">extends</span> <span class="pl-smi">ReqResView</span> <span class="pl-kos">{</span>
   <span class="pl-c1">method</span>: <span class="pl-smi">string</span>
 <span class="pl-kos">}</span>
+
 
 <span class="pl-k">interface</span> <span class="pl-smi">ResponseView</span> <span class="pl-k">extends</span> <span class="pl-smi">ReqResView</span> <span class="pl-kos">{</span>
   <span class="pl-c1">cookies</span>: <span class="pl-smi">string</span><span class="pl-kos">[</span><span class="pl-kos">]</span>
@@ -175,6 +153,7 @@
   <span class="pl-c1">statusText</span>: <span class="pl-smi">string</span>
 <span class="pl-kos">}</span>
 
+
 <span class="pl-k">type</span> <span class="pl-smi">CustomResult</span> <span class="pl-c1">=</span>
   <span class="pl-c1">|</span> <span class="pl-smi">Request</span>                     <span class="pl-c">// replace original request and refetch response</span>
   <span class="pl-c1">|</span> <span class="pl-smi">Response</span>                    <span class="pl-c">// replace original response</span>
@@ -182,24 +161,13 @@
   <span class="pl-c1">|</span> <span class="pl-smi">ReadableStream</span> <span class="pl-c1">|</span> <span class="pl-smi">Uint8Array</span> <span class="pl-c">// replace response body with value</span>
   <span class="pl-c1">|</span> <span class="pl-smi">unknown</span>                     <span class="pl-c">// replace response body with coerced value?.toString()</span>
   <span class="pl-c1">|</span> <span class="pl-c1">null</span>                        <span class="pl-c">// remove response body</span></pre></div>
-<div class="markdown-heading"><h2 class="heading-element">Extra</h2><a id="user-content-extra" class="anchor" aria-label="Permalink: Extra" href="#user-content-extra"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<div class="markdown-heading"><h3 class="heading-element">Notes</h3><a id="user-content-notes" class="anchor" aria-label="Permalink: Notes" href="#user-content-notes"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 class="heading-element">Notes <a href="https://deepwiki.com/NE0N0US/curl-proxy" rel="nofollow"><img src="https://camo.githubusercontent.com/0f5ae213ac378635adeb5d7f13cef055ad2f7d9a47b36de7b1c67dbe09f609ca/68747470733a2f2f6465657077696b692e636f6d2f62616467652e737667" alt="Ask DeepWiki" data-canonical-src="https://deepwiki.com/badge.svg" style="max-width: 100%;"></a>
+</h2><a id="user-content-notes-" class="anchor" aria-label="Permalink: Notes " href="#notes-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <ul>
-<li>
-<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent" rel="nofollow">Escape</a> complex parameters (<code>url</code>, <code>body</code>, <code>resbody=javascript:…</code>) using tools like <a href="https://www.postman.com/" rel="nofollow">Postman</a>
-</li>
 <li>Keep entire URL under deployment platform limit, <a href="https://vercel.com/docs/errors/url_too_long" rel="nofollow">14 KB for Vercel</a>
 </li>
-<li>Additional <code>url</code> along with <code>skipdefaults</code> can be used to debug requests using services like <a href="https://webhook.site/" rel="nofollow">Webhook.site</a>
-</li>
-<li>You can debug requests and get fake responses in <a href="https://httpbin.org/" rel="nofollow">httpbin</a> and <a href="https://jsonplaceholder.typicode.com/" rel="nofollow">JSONPlaceholder</a>
-</li>
-<li>You can edit JSON objects and arrays in <a href="https://dataformatterpro.com/json-editor/" rel="nofollow">visual editors</a> and should <a href="https://jsonlint.com/json-minify" rel="nofollow">minify</a> it</li>
-<li>Both <code>url</code> count and <em>recursion</em> level are limited for performance and security reasons</li>
-<li>HTTP reference: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers" rel="nofollow">headers</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods" rel="nofollow">request methods</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status" rel="nofollow">response status codes</a>
-</li>
-<li>Default response header changes allow <em>bypassing CORS</em> restrictions on <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin" rel="nofollow">request origin</a> and <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers" rel="nofollow">response headers</a>
-</li>
+<li>
+<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent" rel="nofollow">Escape</a> complex parameters (<code>url</code>, <code>body</code>, <code>resbody=javascript:…</code>)</li>
 <li>
 <code>resbody</code> custom handlers support <a href="https://test262.fyi/#%7Cqjs" rel="nofollow">most of ES2025</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto" rel="nofollow">crypto</a> object and following Web APIs:
 <ul>
@@ -219,55 +187,12 @@
 <li><a href="https://developer.mozilla.org/docs/Web/API/CompressionStream" rel="nofollow">CompressionStream</a></li>
 </ul>
 </li>
-<li>Common mobile network speed, kbit/s:
-<table>
-<thead>
-<tr>
-<th align="center">Type</th>
-<th align="right">Download</th>
-<th align="right">Upload</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td align="center">3G</td>
-<td align="right">384</td>
-<td align="right">256</td>
-</tr>
-<tr>
-<td align="center">H</td>
-<td align="right">7 000</td>
-<td align="right">2 000</td>
-</tr>
-<tr>
-<td align="center">H+</td>
-<td align="right">12 000</td>
-<td align="right">5 000</td>
-</tr>
-<tr>
-<td align="center">4G</td>
-<td align="right">50 000</td>
-<td align="right">15 000</td>
-</tr>
-<tr>
-<td align="center">4G+</td>
-<td align="right">100 000</td>
-<td align="right">40 000</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li>You can <a href="https://deepwiki.com/NE0N0US/curl-proxy" rel="nofollow">ask DeepWiki</a> about this project</li>
 </ul>
-<div class="markdown-heading"><h3 class="heading-element">Examples</h3><a id="user-content-examples" class="anchor" aria-label="Permalink: Examples" href="#user-content-examples"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
-<p>Under construction</p>
-<div class="markdown-heading"><h2 class="heading-element">License</h2><a id="user-content-license" class="anchor" aria-label="Permalink: License" href="#user-content-license"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
+<div class="markdown-heading"><h2 class="heading-element">License <a href="https://app.fossa.com/projects/git%2Bgithub.com%2FNE0N0US%2Fcurl-proxy?ref=badge_shield&amp;issueType=license" rel="nofollow"><img src="https://camo.githubusercontent.com/d3e961256adb95c458a9253392b5fd38d33c9adeb76ec7c3928e264b72176526/68747470733a2f2f6170702e666f7373612e636f6d2f6170692f70726f6a656374732f6769742532426769746875622e636f6d2532464e45304e3055532532466375726c2d70726f78792e7376673f747970653d736869656c64266973737565547970653d6c6963656e7365" alt="FOSSA Status" data-canonical-src="https://app.fossa.com/api/projects/git%2Bgithub.com%2FNE0N0US%2Fcurl-proxy.svg?type=shield&amp;issueType=license" style="max-width: 100%;"></a>
+</h2><a id="user-content-license-" class="anchor" aria-label="Permalink: License " href="#license-"><span aria-hidden="true" class="octicon octicon-link"></span></a></div>
 <p>Licensed under the Apache License, Version 2.0. See:</p>
 <ul>
 <li><a href="./LICENSE">LICENSE</a></li>
 <li><a href="./NOTICE">NOTICE</a></li>
 </ul>
-<p><a href="#user-content-curl-proxy">(Top)</a></p>
-</div>
-	</body>
-</html>
+<p><a href="#curl-proxy-">(Top)</a></p>

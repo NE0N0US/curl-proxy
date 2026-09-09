@@ -6,6 +6,7 @@ import http from 'node:http'
 import {Readable} from 'node:stream'
 import {pipeline} from 'node:stream/promises'
 import {parseArgs} from 'node:util'
+import os from 'node:os'
 
 // @ts-expect-error
 import {ENDPOINT_PROXY, ENDPOINT_PROXY_DEBUG, type ProxyConfig, createProxy, proxyDebugResponse} from './index.js'
@@ -151,6 +152,16 @@ function cliConfig() {
 	}
 }
 
+function listIp4() {
+	return Object.values(os.networkInterfaces())
+		.map(ifaces => (ifaces ?? [])
+			.filter(iface => iface.family === 'IPv4' && !iface.internal)
+			.map(({address}) => address)
+		)
+		.filter(ifaces => ifaces?.length)
+		.flat()
+}
+
 function cliHelp() {
 	const
 		width = Math.max(...cliParams.map(({long, type}) => long.length + (type ? 0 : 8))),
@@ -170,6 +181,10 @@ function main() {
 		try {
 			serve(config, port, hostname)
 			console.log(`Listening at http://${hostname ?? HOSTNAME_DEFAULT}:${port ?? PORT_DEFAULT}`)
+			if (!hostname || hostname === HOSTNAME_DEFAULT)
+				console.log('Available at:' + ['localhost', ...listIp4()].map(hostname =>
+					`\n  http://${hostname}:${port ?? PORT_DEFAULT}`
+				).join(''))
 		}
 		catch (error) {
 			console.error(error)

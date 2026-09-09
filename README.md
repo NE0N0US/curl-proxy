@@ -1,13 +1,13 @@
-# cURL Proxy
-**cURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes) · [Examples](#examples)</sub>
+# cURL Proxy [![& URL Artisan](https://badgen.net/static/client/URL%20Artisan?icon=chrome)](/url-artisan?open=about)
+**cURL Proxy** is an unauthenticated, non-caching, Node.js **HTTP(S) proxy** that supports batch requests and is [driven by URL query](#url-parameters). Headers, methods, bodies, and status codes can be overridden, and headers can also be deleted using wildcards. Responses can be transformed through *[custom JavaScript logic](#typescript-declaration-of-resbodyjavascript)*, which can chain requests and merge responses. *It also supports* retries with exponential backoff, timeouts, throttling and optional limits on request batching and recursion. By default it strips sensitive request headers and *bypasses CORS* response restrictions, useful for debugging and development. <sub>[Notes](#notes-) · [Examples](/url-artisan?open=examples)</sub>
 
 # Usage [![](https://badgen.net/npm/node/@ne0n0us/curl-proxy?icon=nodedotjs)](https://nodejs.org/en/download)
 ## Server [![](https://badgen.net/packagephobia/install/@ne0n0us/curl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=@ne0n0us/curl-proxy)
 - Public instance - `https://curl-proxy.vercel.app/?url=…` or [clone](https://vercel.com/new/clone?repository-url=https://github.com/NE0N0US/curl-proxy)
 - Local instance - `npm start`
-- CLI instance - `npx -y @ne0n0us/curl-proxy`
+- CLI instance (no client) - `npx -y @ne0n0us/curl-proxy`
 
-## Library [![](https://badgen.net/bundlephobia/minzip/@ne0n0us/curl-proxy?icon=npm)](https://bundlephobia.com/package/@ne0n0us/curl-proxy)
+## Library [![](https://badgen.net/packagephobia/publish/@ne0n0us/curl-proxy?icon=packagephobia)](https://packagephobia.com/result?p=@ne0n0us/curl-proxy)
 ```javascript
 import {createProxy} from '@ne0n0us/curl-proxy'
 const proxy = createProxy(config)
@@ -17,8 +17,8 @@ const response = await proxy(request)
 ## URL Parameters
 - `url` - resource URL, `http` assumed, *required*, *repeatable* (max. `16`), first response used, other statuses in comma-separated `X-Proxy-Responses`
 - `fastest` - return first available response and its index in `X-Proxy-Responses`, abort others
-- `headers` - request headers to overwrite (`Host` is determined dynamically)
-- `delheaders` - names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
+- `headers` - JSON or JSONCrush object of request headers to overwrite (`Host` is determined dynamically)
+- `delheaders` - JSON or JSONCrush array of names of request headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
   ```jsonc
   [
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
@@ -31,20 +31,20 @@ const response = await proxy(request)
     "Sec-CH-*", "Sec-Fetch-*",
   ]
   ```
-- `resheaders` - response headers to overwrite (`Access-Control-Allow-Origin` and `Access-Control-Expose-Headers` are set automatically), in addition to:
+- `resheaders` - JSON or JSONCrush object of response headers to overwrite (`Access-Control-Allow-Origin` and `Access-Control-Expose-Headers` are set automatically), in addition to:
   ```json
   {
     "Access-Control-Allow-Headers": "*",
+	"Access-Control-Allow-Credentials": "true",
     "Cross-Origin-Resource-Policy": "cross-origin",
     "Timing-Allow-Origin": "*"
   }
-- `delresheaders` - names of response headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
+  ```
+- `delresheaders` - JSON or JSONCrush array of names of response headers to delete (`Connection` is deleted along with headers listed in it, `*` is a wildcard), in addition to:
   ```jsonc
   [
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
     "Connection", "Keep-Alive", "Proxy-Authenticate", "Trailer", "Transfer-Encoding", "Upgrade",
-    // for Access-Control-Allow-Origin
-    "Access-Control-Allow-Credentials",
   ]
    ```
 - `renresheaders` - rename response headers to `X-Original-*` before changes
@@ -53,17 +53,16 @@ const response = await proxy(request)
 - `body` - request body text
 - `resbody` - response transformation:
   - `null` - remove response body
-  - `atob` - decode body from base64
-  - `btoa` - encode body to base64
+  - `atob` - decode body from Base64
+  - `btoa` - encode body to Base64
   - `javascript:…` - [custom handler](#typescript-declaration-of-resbodyjavascript), returns body, response or request
 - `status` - response status code to overwrite
-- `statustext` - response status message to overwrite
 - `retry` - retries after first request
 - `retryin` - milliseconds between retries, supports exponential backoff:\
   *min*(*in* * *factor*<sup>*attempt*</sup>, *limit*)
-- `retryfactor` - backoff multiplier per retry (industry standard is `2`)
+- `retryfactor` - backoff multiplier per retry (default is `1`, industry standard is `2`)
 - `retrylimit` - backoff maximum milliseconds
-- `timeout` - milliseconds to abort request after
+- `timeout` - milliseconds to abort request after (default is `300000`)
 - `ttfb` - milliseconds to first response byte
 - `throttle` - bidirectional bandwidth limit in kbit/s
 - `throttleup` - upload bandwidth limit in kbit/s
@@ -134,16 +133,9 @@ type CustomResult =
   | null                        // remove response body
 ```
 
-## Extra
-### Notes
-- [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`) using tools like [Postman](https://www.postman.com/)
+## Notes [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/NE0N0US/curl-proxy)
 - Keep entire URL under deployment platform limit, [14 KB for Vercel](https://vercel.com/docs/errors/url_too_long)
-- Additional `url` along with `skipdefaults` can be used to debug requests using services like [Webhook.site](https://webhook.site/)
-- You can debug requests and get fake responses in [httpbin](https://httpbin.org/) and [JSONPlaceholder](https://jsonplaceholder.typicode.com/)
-- You can edit JSON objects and arrays in [visual editors](https://dataformatterpro.com/json-editor/) and should [minify](https://jsonlint.com/json-minify) it
-- Both `url` count and *recursion* level are limited for performance and security reasons
-- HTTP reference: [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers), [request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods), [response status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)
-- Default response header changes allow *bypassing CORS* restrictions on [request origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin) and [response headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers)
+- [Escape](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) complex parameters (`url`, `body`, `resbody=javascript:…`)
 - `resbody` custom handlers support [most of ES2025](https://test262.fyi/#|qjs), [crypto](https://developer.mozilla.org/en-US/docs/Web/API/Window/crypto) object and following Web APIs:
   - [URL](https://developer.mozilla.org/docs/Web/API/URL)
   - [URLSearchParams](https://developer.mozilla.org/docs/Web/API/URLSearchParams)
@@ -159,22 +151,10 @@ type CustomResult =
   - [TransformStream](https://developer.mozilla.org/docs/Web/API/TransformStream)
   - [DecompressionStream](https://developer.mozilla.org/docs/Web/API/DecompressionStream)
   - [CompressionStream](https://developer.mozilla.org/docs/Web/API/CompressionStream)
-- Common mobile network speed, kbit/s:
-  | Type | Download | Upload |
-  |:----:|---------:|-------:|
-  | 3G   |      384 |    256 |
-  | H    |    7 000 |  2 000 |
-  | H+   |   12 000 |  5 000 |
-  | 4G   |   50 000 | 15 000 |
-  | 4G+  |  100 000 | 40 000 |
-- You can [ask DeepWiki](https://deepwiki.com/NE0N0US/curl-proxy) about this project
 
-### Examples
-Under construction
-
-## License
+## License [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FNE0N0US%2Fcurl-proxy.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FNE0N0US%2Fcurl-proxy?ref=badge_shield&issueType=license)
 Licensed under the Apache License, Version 2.0. See:
 - [LICENSE](./LICENSE)
 - [NOTICE](./NOTICE)
 
-[(Top)](#curl-proxy)
+[(Top)](#curl-proxy-)

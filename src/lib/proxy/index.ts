@@ -155,26 +155,24 @@ export function createProxy(
 					`Proxy recursion limit of ${config.proxyRecursionMax} exceeded`
 				)
 			// modify response
-			if (resIndex !== undefined)
-				resHeaders.set(Header.X_PROXY_RESPONSES, resIndex?.toString())
-			else if (responses.length)
-				resHeaders.set(Header.X_PROXY_RESPONSES, responses.map(result =>
-					result.status === 'fulfilled' ? result.value.status : null
-				).join(','))
 			const
 				acceptEncoding = resolveAcceptHeader(headers.get(Header.ACCEPT_ENCODING),
 					ACCEPT_ENCODING_HEADER_ALL, AcceptEncodingHeader.ANY),
 				contentEncoding = acceptEncoding === AcceptEncodingHeader.ANY
 					? AcceptEncodingHeader.DEFAULT : acceptEncoding,
+				proxyResponses = resIndex !== undefined ? resIndex?.toString() :
+					responses.length ? responses.map(result =>
+						result.status === 'fulfilled' ? result.value.status : null
+					).join(',') : undefined,
 				{request, body: newResBody, ...newResInit} = await processCustom(
 					newReq, res, responses.map(
 						response => response.status === 'fulfilled' ? response.value : null
 					),
 					{
 						body: doRunCustom ? res.clone().body : res.body,
-						headers: processResHeaders(resHeaders, searchParams, contentEncoding, headers),
+						headers: processResHeaders(resHeaders, searchParams, contentEncoding, proxyResponses, headers),
 						status: status || res.status,
-						statusText: params[SearchParam.STATUS_TEXT] ?? res.statusText,
+						statusText: res.statusText,
 					},
 					doRunCustom ? resbody.slice(ResBodyParam.JAVASCRIPT.length) : undefined,
 					config.runCustomMs, config.runCustomBytes, config.runCustomUnsafe,

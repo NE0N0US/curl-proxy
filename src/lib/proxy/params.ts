@@ -1,28 +1,7 @@
+import {SearchParam} from './search-param.ts'
 import {ResBodyParam} from './body.ts'
 
-export enum SearchParam {
-	URL = 'url',
-	FASTEST = 'fastest',
-	HEADERS = 'headers',
-	DEL_HEADERS = 'delheaders',
-	RES_HEADERS = 'resheaders',
-	DEL_RES_HEADERS = 'delresheaders',
-	REN_RES_HEADERS = 'renresheaders',
-	SKIP_DEFAULTS = 'skipdefaults',
-	METHOD = 'method',
-	BODY = 'body',
-	RES_BODY = 'resbody',
-	STATUS = 'status',
-	STATUS_TEXT = 'statustext',
-	RETRY = 'retry',
-	RETRY_IN = 'retryin',
-	RETRY_FACTOR = 'retryfactor',
-	RETRY_LIMIT = 'retrylimit',
-	TIMEOUT = 'timeout',
-	TTFB = 'ttfb',
-	THROTTLE = 'throttle',
-	THROTTLE_UP = 'throttleup',
-}
+export {SearchParam}
 
 export function parseParams(searchParams: URLSearchParams) {
 	const

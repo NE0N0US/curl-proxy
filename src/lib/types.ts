@@ -21,11 +21,3 @@ export interface ProxyConfig {
 	/** default - `false` */
 	runCustomUnsafe: boolean
 }
-
-export interface ProxyConfigVercel extends ProxyConfig {
-	allowHelpHtml: boolean
-	githubApiMd: string
-	githubApiVer: string
-	/** [create](https://github.com/settings/personal-access-tokens/new) and add to [.env](https://vercel.com/docs/environment-variables#development-environment-variables): `key=value` */
-	githubApiToken?: string
-}

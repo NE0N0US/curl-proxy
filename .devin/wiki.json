@@ -10,7 +10,7 @@
       "purpose": "Introduces curl-proxy, its purpose, capabilities, architecture at a high level, and the main ideas behind the project.",
       "page_notes": [
         {
-          "content": "Explain what makes curl-proxy different from an ordinary HTTP proxy. Introduce URL-driven configuration, request and response transformations, programmable processing, streaming, retries, batching, recursion, and stateless serverless deployment without going into implementation details. Mention typical audiences such as frontend developers, API developers, automation engineers, and debugging workflows."
+          "content": "Explain what makes curl-proxy different from an ordinary HTTP proxy. Introduce URL-driven configuration, request and response transformations, programmable processing, streaming, retries, batching, recursion, and stateless serverless deployment without going into implementation details. Mention typical audiences such as frontend developers, API developers, automation engineers, and debugging workflows. Mention URL Artisan as a browser-based HTTP client that provides a simplified Postman-like interface for sending and inspecting HTTP requests and exposes cURL Proxy parameters through a UI when proxy-level control is needed."
         }
       ]
     },
@@ -31,6 +31,16 @@
       "page_notes": [
         {
           "content": "Group parameters by purpose instead of implementation: target selection, request modification, response modification, body transformation, execution control, retries, timeouts, bandwidth limiting, recursion, and diagnostics. Explain parameter interactions, defaults, edge cases, and practical usage patterns instead of only listing definitions. Document only publicly supported parameters; do not infer undocumented options from implementation code."
+        }
+      ]
+    },
+    {
+      "title": "URL Artisan",
+      "parent": "Overview",
+      "purpose": "Describes URL Artisan, the browser-based HTTP client for constructing, sending, and inspecting HTTP requests with optional cURL Proxy integration.",
+      "page_notes": [
+        {
+          "content": "Describe URL Artisan as a browser-based HTTP client with a simplified Postman-like workflow and a polished UI/UX. It uses the browser's native Fetch API by default, allowing requests to be sent directly without cURL Proxy. When more control over requests or responses is required, it integrates with cURL Proxy and exposes the proxy's URL-driven parameters through a dedicated UI. Explain the relationship clearly: URL Artisan is the interactive client and request-building interface, while cURL Proxy performs the programmable HTTP proxying and transformations. Emphasize that the UI makes cURL Proxy functionality easier to discover and use without manually constructing complex proxy URLs."
         }
       ]
     },
@@ -69,7 +79,7 @@
       "purpose": "Explains streaming body transformations and HTTP payload handling.",
       "page_notes": [
         {
-          "content": "Explain streaming architecture, compression and decompression, transfer encoding, throttling, upload and download limits, base64 transformations, body replacement, response recompression, content-length implications, Web Streams versus Node streams, and why streaming is preferred over buffering. Clearly distinguish public `resbody` actions (`null`, `atob`, `btoa`, and `javascript:`) from internal processing such as automatic compression, decompression, HTTP content negotiation, and response recompression."
+          "content": "Explain streaming architecture, compression and decompression, transfer encoding, throttling, upload and download limits, Base64 transformations, body replacement, response recompression, content-length implications, Web Streams versus Node streams, and why streaming is preferred over buffering. Clearly distinguish public `resbody` actions (`null`, `atob`, `btoa`, and `javascript:`) from internal processing such as automatic compression, decompression, HTTP content negotiation, and response recompression."
         }
       ]
     },

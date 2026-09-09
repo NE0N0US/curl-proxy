@@ -22,11 +22,10 @@ export const SearchDefaults = Object.freeze({
 	DEL_RES_HEADERS: Object.freeze([
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers#hop-by-hop_headers
 		'Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Trailer', 'Transfer-Encoding', 'Upgrade',
-		// for Access-Control-Allow-Origin
-		'Access-Control-Allow-Credentials',
 	]),
 	RES_HEADERS: Object.freeze({
 		'Access-Control-Allow-Headers': '*',
+		'Access-Control-Allow-Credentials': 'true',
 		'Cross-Origin-Resource-Policy': 'cross-origin',
 		'Timing-Allow-Origin': '*',
 	}),
@@ -64,7 +63,10 @@ export function processReqHeaders(headers: Headers, params: URLSearchParams) {
 }
 
 /** `Connection` is deleted along with headers listed in it, body is chunked and length is unknown */
-export function processResHeaders(headers: Headers, params: URLSearchParams, contentEncoding: string, reqHeaders: Headers) {
+export function processResHeaders(
+	headers: Headers, params: URLSearchParams, contentEncoding: string,
+	proxyResponses: string | undefined, reqHeaders: Headers
+) {
 	const
 		skipDefaults = params.get(SearchParam.SKIP_DEFAULTS) !== null,
 		originalHeaders = new Headers(headers)
@@ -90,6 +92,9 @@ export function processResHeaders(headers: Headers, params: URLSearchParams, con
 		originalHeaders.getSetCookie().slice(1)
 			.forEach(value => headers.append(Header.X_ORIGINAL_PREFIX + Header.SET_COOKIE, value))
 	}
+	// multiple urls data
+	if (proxyResponses !== undefined)
+		headers.set(Header.X_PROXY_RESPONSES, proxyResponses)
 	// allow origin
 	if (!skipDefaults)
 		headers.set(Header.AC_ALLOW_ORIGIN, reqHeaders.get(Header.ORIGIN) || AC_ALLOW_ORIGIN_DEFAULT)

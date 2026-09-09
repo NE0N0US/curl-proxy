@@ -1,0 +1,37 @@
+.artisan {
+	font-synthesis: none;
+
+	&, body {
+		font-family: 'Roboto Flex', Roboto, system-ui, sans-serif;
+	}
+
+	code, kbd, pre, samp, .artisan-mono {
+		font-family: 'Roboto Mono', monospace;
+	}
+}
+
+@font-face {
+	font-family: "Roboto Flex";
+	// https://fontinfo.app/
+	font-weight: 100 1000;
+	font-style: oblique -10deg 0;
+	font-stretch: 25% 151%;
+	src: url("/fonts/roboto-flex/RobotoFlex-VariableFont_GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf") format("truetype");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Roboto Mono";
+	font-weight: 100 700;
+	font-style: normal;
+	src: url("/fonts/roboto-mono/RobotoMono-VariableFont_wght.ttf") format("truetype");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Roboto Mono";
+	font-weight: 100 700;
+	font-style: italic;
+	src: url("/fonts/roboto-mono/RobotoMono-Italic-VariableFont_wght.ttf") format("truetype");
+	font-display: swap;
+}

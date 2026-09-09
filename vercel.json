@@ -7,8 +7,15 @@
 			"maxDuration": "max"
 		}
 	},
-	"rewrites": [{
-		"source": "/",
-		"destination": "/api/proxy"
-	}]
+	"rewrites": [
+		{
+			"source": "/",
+			"destination": "/api/proxy"
+		},
+		{
+			"source": "/url-artisan/(.*)",
+			"destination": "/dist/url-artisan"
+		}
+	],
+	"outputDirectory": "dist"
 }

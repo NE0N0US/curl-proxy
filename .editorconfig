@@ -6,6 +6,6 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-[*.ts]
+[*.{ts,vue}]
 quote_type = single
 indent_brace_style = K&R

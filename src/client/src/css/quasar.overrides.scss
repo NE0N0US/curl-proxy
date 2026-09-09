@@ -1,0 +1,157 @@
+.artisan-quasar {
+	.q-menu:not([style*="max-height:"]) {
+		max-height: none !important;
+	}
+
+	.q-input, .q-textarea {
+		&:not(.interactive-prepend) .q-field__prepend {
+			pointer-events: none;
+		}
+	}
+
+	.q-field__label, .q-field__shadow, .q-placeholder::placeholder {
+		text-overflow: ellipsis;
+		user-select: none;
+	}
+
+	.q-textarea {
+		cursor: text;
+	}
+
+	.q-tabs__arrow {
+		text-shadow: none;
+		background-color: var(--color-background);
+	}
+
+	.q-tab__indicator {
+		height: 4px;
+		border-top-left-radius: 4px;
+		border-top-right-radius: 4px;
+	}
+
+	.q-toolbar, .q-item__label--header {
+		min-height: 48px;
+	}
+
+	.q-item__label--header {
+		padding-block: 8px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+	}
+
+	.q-btn--round {
+		min-width: 40px;
+		min-height: 40px;
+	}
+
+	.q-dialog__inner--maximized > div {
+		max-width: 100vw;
+		max-width: 100dvw;
+		max-height: 100vh;
+		max-height: 100dvh;
+	}
+
+	.q-checkbox__svg {
+		color: var(--color-background);
+	}
+
+	.q-field__native, .q-field__shadow, .q-field__suffix, .q-dialog {
+		color: var(--color-text);
+	}
+
+	.q-separator, .q-splitter__separator {
+		background-color: var(--color-border) !important;
+	}
+
+	.q-item__label--header,
+	.q-placeholder::placeholder,
+	.q-field__label,
+	.q-field--focused .q-field__shadow,
+	.shadow-text-always .q-field__shadow {
+		color: var(--color-text);
+		opacity: var(--opacity-disabled);
+	}
+
+	.q-field__shadow > .invisible {
+		display: none;
+	}
+
+	.q-item__label--caption {
+		color: inherit;
+		opacity: var(--opacity-disabled);
+	}
+
+	.q-checkbox__inner--falsy, .q-radio__inner--falsy {
+		color: var(--color-text);
+
+		.q-checkbox__bg, .q-radio__bg {
+			opacity: var(--opacity-disabled);
+		}
+	}
+
+	.q-field--disabled .q-field__control > div,
+	.q-item.disabled,
+	.q-btn.disabled,
+	.q-checkbox.disabled,
+	.q-tab--inactive .q-tab__content {
+		opacity: var(--opacity-disabled) !important;
+	}
+
+	.q-field--disabled .q-field__label,
+	.q-item.disabled .q-item__label--caption,
+	.q-item.disabled .q-checkbox.disabled,
+	.q-tab--inactive {
+		opacity: 1 !important;
+	}
+
+	.q-field--focused .q-field__label {
+		color: inherit;
+		opacity: 1;
+	}
+
+	.q-drawer, .q-menu, .q-tooltip, .q-notification {
+		background-color: var(--color-background);
+		box-shadow: none;
+		border-color: var(--color-border);
+
+		&.q-drawer {
+			box-sizing: content-box;
+
+			& > * {
+				box-sizing: border-box;
+			}
+		}
+	}
+
+	.q-menu, .q-tooltip, .q-notification {
+		border: 1px solid var(--color-border);
+		color: var(--color-text);
+
+		&.q-tooltip {
+			padding: 8px 12px;
+			pointer-events: all !important;
+		}
+
+		&.q-notification {
+			min-height: 50px;
+			user-select: none;
+
+			.q-notification__progress {
+				left: -12px;
+				right: -12px;
+				border-radius: 0;
+				height: 4px;
+				opacity: 1;
+			}
+
+			.q-notification__badge {
+				box-shadow: none;
+			}
+		}
+	}
+
+	.q-table th, .q-table td {
+		border-color: var(--color-border);
+	}
+}

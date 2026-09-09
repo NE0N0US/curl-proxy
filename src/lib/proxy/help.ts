@@ -1,6 +1,6 @@
-import {ProxyConfig, ProxyConfigVercel} from '../types.ts'
+import {ProxyConfig} from '../types.ts'
 import {escapeHtml, fileText, formatStringArray, formatStringRecord, isArray, isRecord} from '../utils.ts'
-import {AcceptHeader, Header, HttpMethod, HttpStatus, AC_ALLOW_ORIGIN_DEFAULT, AUTHORIZATION_BEARER, PROTOCOL_DEFAULT, formatHttpHeader, resolveAcceptHeader} from '../http.ts'
+import {AcceptHeader, Header, HttpStatus, AC_ALLOW_ORIGIN_DEFAULT, PROTOCOL_DEFAULT, formatHttpHeader, resolveAcceptHeader} from '../http.ts'
 
 import {SearchParam} from './params.ts'
 import {ResBodyParam} from './body.ts'
@@ -11,7 +11,8 @@ import {SearchDefaults} from './headers.ts'
 enum Filename {
 	TEMPLATE_HELP = 'src/templates/help.html',
 	TEMPLATE_MD = 'src/templates/md.html',
-	TEMPLATE_MD_CACHED_HTML = 'src/templates/cache/md-cached.html',
+	TEMPLATE_MD_CACHED = 'src/templates/cache/md-cached.html',
+	TEMPLATE_MD_ERROR = 'src/templates/cache/md-error.html',
 	README_MD = 'README.md',
 }
 
@@ -54,7 +55,7 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			// headers
 			`\n* ${
 				SearchParam.HEADERS.padEnd(width)
-			} - request headers to overwrite (${
+			} - JSON or JSONCrush object of request headers to overwrite (${
 				formatHttpHeader(Header.HOST)
 			} is determined dynamically)` +
 			(isRecord(SearchDefaults.HEADERS) ? ', in addition to:' : '') +
@@ -62,7 +63,7 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			// delheaders
 			`\n* ${
 				SearchParam.DEL_HEADERS.padEnd(width)
-			} - names of request headers to delete (${
+			} - JSON or JSONCrush array of names of request headers to delete (${
 				formatHttpHeader(Header.CONNECTION)
 			} is deleted along with headers listed in it, * is a wildcard)` +
 			(isArray(SearchDefaults.DEL_HEADERS) ? ', in addition to:' : '') +
@@ -70,7 +71,7 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			// resheaders
 			`\n* ${
 				SearchParam.RES_HEADERS.padEnd(width)
-			} - response headers to overwrite (${
+			} - JSON or JSONCrush object of response headers to overwrite (${
 				formatHttpHeader(Header.AC_ALLOW_ORIGIN)
 			} and ${
 				formatHttpHeader(Header.AC_EXPOSE_HEADERS)
@@ -78,7 +79,7 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			(isRecord(SearchDefaults.RES_HEADERS) ? ', in addition to:' : '') +
 			(isRecord(SearchDefaults.RES_HEADERS) ? `\n  ${formatStringRecord(SearchDefaults.RES_HEADERS)}` : '') +
 			// delresheaders
-			`\n* ${SearchParam.DEL_RES_HEADERS.padEnd(width)} - names of response headers to delete (${
+			`\n* ${SearchParam.DEL_RES_HEADERS.padEnd(width)} - JSON or JSONCrush array of names of response headers to delete (${
 				formatHttpHeader(Header.CONNECTION)
 			} is deleted along with headers listed in it, * is a wildcard)` +
 			(isArray(SearchDefaults.DEL_RES_HEADERS) ? ', in addition to:' : '') +
@@ -99,18 +100,17 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 			// resbody
 			`\n* ${SearchParam.RES_BODY.padEnd(width)} - response transformation:` +
 			`\n  * ${ResBodyParam.NULL.padEnd(widthRbp + 1)} - remove response body` +
-			`\n  * ${ResBodyParam.ATOB.padEnd(widthRbp + 1)} - decode body from base64` +
-			`\n  * ${ResBodyParam.BTOA.padEnd(widthRbp + 1)} - encode body to base64` +
+			`\n  * ${ResBodyParam.ATOB.padEnd(widthRbp + 1)} - decode body from Base64` +
+			`\n  * ${ResBodyParam.BTOA.padEnd(widthRbp + 1)} - encode body to Base64` +
 			`\n  * ${ResBodyParam.JAVASCRIPT}… - custom handler, returns body, response or request` +
 			// other params
 			`\n* ${SearchParam.STATUS.padEnd(width)} - response status code to overwrite` +
-			`\n* ${SearchParam.STATUS_TEXT.padEnd(width)} - response status message to overwrite` +
 			`\n* ${SearchParam.RETRY.padEnd(width)} - retries after first request` +
 			`\n* ${SearchParam.RETRY_IN.padEnd(width)} - milliseconds between retries, supports exponential backoff:` +
 			`\n  min(in * (factor ^ attempt), limit)` +
-			`\n* ${SearchParam.RETRY_FACTOR.padEnd(width)} - backoff multiplier per retry (industry standard is 2)` +
+			`\n* ${SearchParam.RETRY_FACTOR.padEnd(width)} - backoff multiplier per retry (default is 1, industry standard is 2)` +
 			`\n* ${SearchParam.RETRY_LIMIT.padEnd(width)} - backoff maximum milliseconds` +
-			`\n* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after` +
+			`\n* ${SearchParam.TIMEOUT.padEnd(width)} - milliseconds to abort request after (default is ${config.globalTimeout})` +
 			`\n* ${SearchParam.TTFB.padEnd(width)} - milliseconds to first response byte` +
 			`\n* ${SearchParam.THROTTLE.padEnd(width)} - bidirectional bandwidth limit in kbit/s` +
 			`\n* ${SearchParam.THROTTLE_UP.padEnd(width)} - upload bandwidth limit in kbit/s` +
@@ -126,48 +126,21 @@ function formatHelp(message: string | undefined, config: ProxyConfig, html = fal
 		.replace(TEMPLATE_CONTENT, escapeHtml(text)) : text
 }
 
-async function formatHelpMd(message: string | undefined, config: ProxyConfigVercel) {
-	if (!message)
-		try {
-			return fileText(Filename.TEMPLATE_MD_CACHED_HTML)
-		}
-		catch {}
-	const text = (message ? `# Error\n\`\`\`\n${message}\n\`\`\`\n` : '') + fileText(Filename.README_MD)
-	return await fetch(config.githubApiMd, {
-		method: HttpMethod.POST,
-		headers: new Headers({
-			[Header.ACCEPT]: AcceptHeader.HTML,
-			[Header.X_GH_API_VERSION]: config.githubApiVer,
-			...config.githubApiToken ? {
-				[Header.AUTHORIZATION]: AUTHORIZATION_BEARER + config.githubApiToken,
-			} : {},
-		}),
-		body: JSON.stringify({text}),
-	})
-		.then(res => {
-			if (!res.ok)
-				throw new Error(`${res.status} ${res.statusText}`)
-			else if (res.headers.has(Header.RETRY_AFTER) ||
-				res.headers.get(Header.X_RATELIMIT_REMAINING) === '0'
-			)
-				throw new Error('Rate limit error')
-			return res
-		})
-		.then(res => res.text())
-		.then(html =>
-			fileText(Filename.TEMPLATE_MD).replace(
-				TEMPLATE_CONTENT,
-				html.replaceAll('href="#', 'href="#user-content-')
-			)
-		)
+async function formatHelpMd(message: string | undefined) {
+	return fileText(Filename.TEMPLATE_MD).replace(
+		TEMPLATE_CONTENT,
+		(message ?
+			fileText(Filename.TEMPLATE_MD_ERROR).replace(TEMPLATE_CONTENT, escapeHtml(message)) : '') +
+			fileText(Filename.TEMPLATE_MD_CACHED).replaceAll('href="#', 'href="#user-content-')
+	)
 }
 
 /** neither streamed nor compressed */
-export async function helpResponse(req: Request, config: ProxyConfigVercel, status = HttpStatus.OK, message?: string) {
+export async function helpResponse(req: Request, config: ProxyConfig, status = HttpStatus.OK, message?: string) {
 	const
-		acceptHtml = config.allowHelpHtml && resolveAcceptHeader(req.headers.get(Header.ACCEPT),
+		acceptHtml = resolveAcceptHeader(req.headers.get(Header.ACCEPT),
 			[AcceptHeader.HTML], AcceptHeader.ANY) !== AcceptHeader.ANY,
-		result = acceptHtml ? await formatHelpMd(message, config)
+		result = acceptHtml ? await formatHelpMd(message)
 			.catch(() => formatHelp(message, config, acceptHtml))
 			: formatHelp(message, config, acceptHtml)
 	return new Response(result, {

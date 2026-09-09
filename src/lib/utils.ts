@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import stream from 'node:stream'
+import JSONCrush from 'jsoncrush'
 
 import {StringRecord} from './types.ts'
 
@@ -47,15 +48,25 @@ export function isRecord<K extends keyof any, V = any>(
 	return valuesOfClass && keysOfType
 }
 
-export function tryParse<T = any>(json: string | null | undefined, isValid: Function, ...args: any[]) {
-	if (!json)
+function parseJson<T = any>(json: string, isValid: Function, ...args: any[]) {
+	const value = JSON.parse(json)
+	if (isValid(value, ...args))
+		return value as T
+}
+
+/** JSON or JSONCrush */
+export function tryParse<T = any>(anyJson: string | null | undefined, isValid: Function, ...args: any[]) {
+	if (!anyJson)
 		return undefined
 	try {
-		const value = JSON.parse(json)
-		if (isValid(value, ...args))
-			return value as T
+		return parseJson<T>(anyJson, isValid, ...args)
 	}
-	catch {}
+	catch {
+		try {
+			return parseJson<T>(JSONCrush.uncrush(anyJson), isValid, ...args)
+		}
+		catch {}
+	}
 }
 
 /** `["a", "b"]` */
@@ -90,7 +101,7 @@ export function checkAbortSignal(signal?: AbortSignal, message?: string) {
 		throw signal.reason ?? getAbortError(message)
 }
 
-/** decode base64 @byLlm */
+/** decode Base64 @byLlm */
 export function atobStream() {
 	let leftover = ''
 	return new stream.Transform({
@@ -112,7 +123,7 @@ export function atobStream() {
 	})
 }
 
-/** encode base64 @byLlm */
+/** encode Base64 @byLlm */
 export function btoaStream() {
 	let leftover = Buffer.alloc(0)
 	return new stream.Transform({
